@@ -59,8 +59,8 @@ if __name__ == '__main__':
     parser.add_argument('video', type=str, help='Video file to process')
     parser.add_argument('-ry', type=int, default=0, help='RoI Y coordinate of top left corner')
     parser.add_argument('-rx', type=int, default=0, help='RoI X coordinate of top left corner')
-    parser.add_argument('-rh', type=int, default=-1, help='RoI height (-1 for full height)')
-    parser.add_argument('-rw', type=int, default=-1, help='RoI width (-1 for full width)')
+    parser.add_argument('-rh', type=int, default=128, help='RoI height (-1 for full height)')
+    parser.add_argument('-rw', type=int, default=128, help='RoI width (-1 for full width)')
     parser.add_argument('-o', '--output', default='predictions.mp4', help='Output video')
 
     args = parser.parse_args()
