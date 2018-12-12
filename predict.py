@@ -2,10 +2,27 @@ import argparse
 
 import cv2
 import numpy as np
+from scipy.ndimage import center_of_mass
 
 from dataloader import visualizable
 from model import build_model
 from tqdm import tqdm
+
+
+def compute_metrics(y, thr=None):
+    pupil_map = y[:, :, 0]
+    glint_map = y[:, :, 1]
+
+    if thr:
+        pupil_map = pupil_map > thr
+        glint_map = glint_map > thr
+
+    pc = center_of_mass(pupil_map)  # (y-coord, x-coord)
+    gc = center_of_mass(glint_map)
+    pa = pupil_map.sum()
+    ga = glint_map.sum()
+
+    return pc, gc, pa, ga
 
 
 def predictions(model, cap, process=None):
