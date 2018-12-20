@@ -51,24 +51,6 @@ class DataGen(keras.utils.Sequence):
         return batch_x, batch_y
 
 
-def visualizable(x, y, alpha=(.5, .5), thr=.5):
-    xx = np.tile(x, (1, 1, 3))
-    yy = np.concatenate((y, np.zeros_like(x)), axis=2)  # add a zero blue channel
-    mask = yy.max(axis=2) > thr
-    mask = mask[:, :, None]
-    return np.where(mask, alpha[0] * xx + alpha[1] * yy, xx)
-
-
-def visualize(x, y):
-    n_rows = len(x) // 4
-    fig, axes = plt.subplots(n_rows, 4, figsize=(20, 20 * n_rows // 4))
-
-    for xi, yi, ax in zip(x, y, axes.flatten()):
-        i = visualizable(xi, yi)
-        ax.imshow(i, cmap=plt.cm.gray)
-        ax.grid(False)
-
-
 if __name__ == '__main__':
     x = plt.imread('data/NN_fullframe/fullFrames/y-00B-1-0.jpeg')
     y = plt.imread('data/NN_fullframe/pngs/y-00B-1-0.png')
