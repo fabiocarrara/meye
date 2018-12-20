@@ -45,13 +45,13 @@ def build_model(x_shape, y_shape):
     up7 = UpSampling2D(size=2)(conv3)  # (conv7)
     up7 = Concatenate()([up7, conv2])
     conv8 = Conv2D(n_filters, 3, activation='relu', padding='same')(up7)
-    # conv8 = Conv2D(n_filters, 3, activation='relu', padding='same')(conv8)
+    conv8 = Conv2D(n_filters, 3, activation='relu', padding='same')(conv8)
 
     # n_filters //= 2
     up8 = UpSampling2D(size=2)(conv8)
     up8 = Concatenate()([up8, conv1])
     conv9 = Conv2D(n_filters, 3, activation='relu', padding='same')(up8)
-    # conv9 = Conv2D(n_filters, 3, activation='relu', padding='same')(conv9)
+    conv9 = Conv2D(n_filters, 3, activation='relu', padding='same')(conv9)
 
     y = Conv2D(y_shape[-1], 3, activation='sigmoid', padding='same')(conv9)
 
