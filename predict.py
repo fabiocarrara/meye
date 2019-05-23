@@ -17,7 +17,7 @@ def predictions(model, cap, process=None):
         if process:
             frame = process(frame)
         frame = frame[:, :, None]  # same as np.expand_dims
-        pred = model.predict(frame[None, ...])[0]
+        pred = model.predict(frame[None, ...])
         yield frame, pred
 
     cap.release()
@@ -30,7 +30,7 @@ def main(args):
 
     # model = build_model(x_shape, y_shape)
     # model.load_weights('best_weights.hdf5')
-    model = load_model('meye-segmentation-2018-12-20.hdf5')
+    model = load_model(args.model)
     cap = cv2.VideoCapture(args.video)
 
     n_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
@@ -48,8 +48,11 @@ def main(args):
     out = cv2.VideoWriter(args.output, fourcc, fps, (args.rh, args.rw))
 
     for frame, pred in tqdm(predictions(model, cap, roi), total=n_frames):
-        img = visualizable(frame, pred)
+        (maps,), ((eye, blink),) = pred
+        img = visualizable(frame, maps)
         img = (img[:, :, ::-1] * 255).astype(np.uint8)  # RGB float -> BGR uint8
+        cv2.putText(img, 'E: {:3.1%}'.format(eye), (5, args.rh - 20), cv2.FONT_HERSHEY_SIMPLEX, .4, (255, 0, 0))
+        cv2.putText(img, 'B: {:3.1%}'.format(blink), (5, args.rh - 5), cv2.FONT_HERSHEY_SIMPLEX, .4, (255, 0, 0))
         out.write(img)
 
     out.release()
@@ -57,6 +60,7 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Predict on test video')
+    parser.add_argument('model', type=str, help='Path to model')
     parser.add_argument('video', type=str, help='Video file to process')
     parser.add_argument('-ry', type=int, default=0, help='RoI Y coordinate of top left corner')
     parser.add_argument('-rx', type=int, default=0, help='RoI X coordinate of top left corner')

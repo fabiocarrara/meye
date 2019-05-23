@@ -28,11 +28,16 @@ def visualizable(x, y, alpha=(.5, .5), thr=.5):
     return np.where(mask, alpha[0] * xx + alpha[1] * yy, xx)
 
 
-def visualize(x, y):
+def visualize(x, y, out=None):
     n_rows = len(x) // 4
     fig, axes = plt.subplots(n_rows, 4, figsize=(20, 20 * n_rows // 4))
-
-    for xi, yi, ax in zip(x, y, axes.flatten()):
-        i = visualizable(xi, yi)
+    y_masks, y_tags = y
+    
+    for xi, yi_mask, yi_tags, ax in zip(x, y_masks, y_tags, axes.flatten()):
+        i = visualizable(xi, yi_mask)
         ax.imshow(i, cmap=plt.cm.gray)
         ax.grid(False)
+        ax.set_title('E: {:.1%} - B: {:.1%}'.format(*yi_tags))
+    
+    if out:
+        plt.savefig(out)
