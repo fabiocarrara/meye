@@ -1,18 +1,18 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-from scipy.ndimage import center_of_mass, label, labeled_comprehension
+from scipy.ndimage import center_of_mass, label, sum as area
 
 
 def nms_on_area(x, s):  # x is a binary image, s is a structuring element
     labels, num_labels = label(x, structure=s)  # find connected components
-    if num_labels > 1:  # if more than 1, compute area for each connected components
+    if num_labels > 1:
         indexes = np.arange(1, num_labels + 1)
-        areas = labeled_comprehension(x, labels, indexes, np.sum, np.int, default=0)
+        areas = area(x, labels, indexes)  # compute area for each connected components
         
-        biggest = max(zip(areas, indexes))[1] # keep index of biggest component
-        x[labels != biggest] = 0 # discard other components
-        
+        biggest = max(zip(areas, indexes))[1]  # get index of largest component
+        x[labels != biggest] = 0  # discard other components
+
     return x
 
 
