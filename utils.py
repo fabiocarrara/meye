@@ -21,10 +21,10 @@ def compute_metrics(y, thr=None):
 
 
 def visualizable(x, y, alpha=(.5, .5), thr=.5):
-    xx = np.tile(x, (1, 1, 3))
-    yy = np.concatenate((y, np.zeros_like(x)), axis=2)  # add a zero blue channel
-    mask = yy.max(axis=2) > thr
-    mask = mask[:, :, None]
+    xx = np.tile(x, (3,))  # Gray -> RGB: repeat channels 3 times
+    yy = np.concatenate((y, np.zeros_like(x)), axis=-1)  # add a zero blue channel
+    mask = yy.max(axis=-1, keepdims=True) > thr  # blend only where a prediction is present
+    # mask = mask[:, :, None]
     return np.where(mask, alpha[0] * xx + alpha[1] * yy, xx)
 
 
