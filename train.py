@@ -76,12 +76,12 @@ def main(args):
     last_checkpointer = ModelCheckpoint(last_ckpt_path, save_best_only=False, save_weights_only=True)
     logger = CSVLogger(log)
     # the lr_scheduler automatically reduces the learning rate when reaching a plateau in the validation loss
-    lr_scheduler = ReduceLROnPlateau(monitor='val_loss', patience=20)
+    lr_scheduler = ReduceLROnPlateau(monitor='val_loss', patience=100)
     callbacks = [best_checkpointer, last_checkpointer, logger, lr_scheduler]
 
     initial_epoch = 0
     if args.resume:
-        model = load_model(last_ckpt_path)
+        model.load_weights(last_ckpt_path)
         initial_epoch = len(pd.read_csv(log))
 
     if not args.eval_only:
@@ -112,11 +112,18 @@ def main(args):
     print(classification_report(targets, best_pred, target_names=['eye', 'blink']))
 
     # let's show the worst batch of test (the one with max loss)
-    i = np.array([model.test_on_batch(*i)[:3] for i in test_gen]).sum(1).argmax()
+    loss_per_batch = np.array([model.test_on_batch(*i)[:3] for i in test_gen]).sum(1)
+    best = loss_per_batch.argmin()
+    worst = loss_per_batch.argmax()
 
-    x, y = test_gen[i]
+    x, y = test_gen[worst]
     p = model.predict(x)  # > 0.5
     viz_path = exp.path_to('worst_test_batch.png')
+    visualize(x, p, out=viz_path)
+
+    x, y = test_gen[best]
+    p = model.predict(x)  # > 0.5
+    viz_path = exp.path_to('best_test_batch.png')
     visualize(x, p, out=viz_path)
 
 
