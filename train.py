@@ -23,11 +23,9 @@ from expman import Experiment
 
 
 def main(args):
-    exp = Experiment(args, root='runs_nopad', ignore=('eval_only', 'epochs', 'resume'))
+    exp = Experiment(args, ignore=('eval_only', 'epochs', 'resume'))
     np.random.seed(args.seed)
 
-    # data = os.path.join(args.data, 'annotations.csv')
-    # data = pd.read_csv(data)
     data = load_datasets(args.data)
 
     # TRAIN/VAL/TEST: 70-20-10 %
@@ -38,10 +36,6 @@ def main(args):
 
     x_shape = (args.resolution, args.resolution, 1)
     y_shape = (args.resolution, args.resolution, 2)
-
-    # train_gen = DataGen(train_data, args.data, x_shape, args.batch_size)
-    # val_gen = DataGen(val_data, args.data, x_shape, args.batch_size, deterministic=True)
-    # test_gen = DataGen(test_data, args.data, x_shape, args.batch_size, deterministic=True)
 
     train_gen = DataGen(train_data, x_shape=x_shape, batch_size=args.batch_size, no_pad=True)
     val_gen = DataGen(val_data, x_shape=x_shape, batch_size=args.batch_size, deterministic=True, no_pad=True)
