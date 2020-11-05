@@ -23,7 +23,7 @@ from expman import Experiment
 
 
 def main(args):
-    exp = Experiment(args, ignore=('eval_only', 'epochs', 'resume'))
+    exp = Experiment(args, root='runs_nopad', ignore=('eval_only', 'epochs', 'resume'))
     np.random.seed(args.seed)
 
     # data = os.path.join(args.data, 'annotations.csv')
@@ -43,9 +43,9 @@ def main(args):
     # val_gen = DataGen(val_data, args.data, x_shape, args.batch_size, deterministic=True)
     # test_gen = DataGen(test_data, args.data, x_shape, args.batch_size, deterministic=True)
 
-    train_gen = DataGen(train_data, x_shape=x_shape, batch_size=args.batch_size)
-    val_gen = DataGen(val_data, x_shape=x_shape, batch_size=args.batch_size, deterministic=True)
-    test_gen = DataGen(test_data, x_shape=x_shape, batch_size=args.batch_size, deterministic=True)
+    train_gen = DataGen(train_data, x_shape=x_shape, batch_size=args.batch_size, no_pad=True)
+    val_gen = DataGen(val_data, x_shape=x_shape, batch_size=args.batch_size, deterministic=True, no_pad=True)
+    test_gen = DataGen(test_data, x_shape=x_shape, batch_size=args.batch_size, deterministic=True, no_pad=True)
 
     # x, y = train_gen[0]
     # visualize(x, y)
