@@ -1,16 +1,33 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-from scipy.ndimage import center_of_mass
+from scipy.ndimage import center_of_mass, label, labeled_comprehension
 
 
-def compute_metrics(y, thr=None):
+def nms_on_area(x, s):  # x is a binary image, s is a structuring element
+    labels, num_labels = label(x, structure=s)  # find connected components
+    if num_labels > 1:  # if more than 1, compute area for each connected components
+        indexes = np.arange(1, num_labels + 1)
+        areas = labeled_comprehension(x, labels, indexes, np.sum, np.int, default=0)
+        
+        biggest = max(zip(areas, indexes))[1] # keep index of biggest component
+        x[labels != biggest] = 0 # discard other components
+        
+    return x
+
+
+def compute_metrics(y, thr=None, nms=False):
     pupil_map = y[:, :, 0]
     glint_map = y[:, :, 1]
 
     if thr:
         pupil_map = pupil_map > thr
         glint_map = glint_map > thr
+        
+        if nms:  # perform non-maximum suppression: keep only largest area
+            s = np.ones((3, 3))  # connectivity structure
+            pupil_map = nms_on_area(pupil_map, s)
+            glint_map = nms_on_area(glint_map, s)
 
     pc = center_of_mass(pupil_map)  # (y-coord, x-coord)
     gc = center_of_mass(glint_map)
