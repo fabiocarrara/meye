@@ -37,7 +37,7 @@ def compute_metrics(y, thr=None, nms=False):
     return pc, gc, pa, ga
 
 
-def visualizable(x, y, alpha=(.5, .5), thr=.5):
+def visualizable(x, y, alpha=(.5, .5), thr=0):
     xx = np.tile(x, (3,))  # Gray -> RGB: repeat channels 3 times
     yy = np.concatenate((y, np.zeros_like(x)), axis=-1)  # add a zero blue channel
     mask = yy.max(axis=-1, keepdims=True) > thr  # blend only where a prediction is present
@@ -58,3 +58,4 @@ def visualize(x, y, out=None):
     
     if out:
         plt.savefig(out)
+        plt.close()
