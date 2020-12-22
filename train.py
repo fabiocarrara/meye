@@ -50,8 +50,8 @@ def main(args):
     model.compile(optimizer='sgd', loss='binary_crossentropy', metrics={'out_tags': 'binary_accuracy'})
 
     log = exp.path_to('log.csv')
-    best_ckpt_path = exp.ckpt('best.h5')
-    last_ckpt_path = exp.ckpt('last.h5')
+    best_ckpt_path = exp.path_to('best_weights.h5')
+    last_ckpt_path = exp.path_to('last_weights.h5')
 
     # today = datetime.datetime.now().strftime('%Y-%m-%d')
     best_model_path = 'meye-segmentation_' \
