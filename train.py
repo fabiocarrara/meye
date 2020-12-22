@@ -37,7 +37,7 @@ def main(args):
     x_shape = (args.resolution, args.resolution, 1)
     y_shape = (args.resolution, args.resolution, 2)
 
-    train_gen = DataGen(train_data, x_shape=x_shape, batch_size=args.batch_size, no_pad=True)
+    train_gen = DataGen(train_data, x_shape=x_shape, batch_size=args.batch_size)
     val_gen = DataGen(val_data, x_shape=x_shape, batch_size=args.batch_size, deterministic=True, no_pad=True)
     test_gen = DataGen(test_data, x_shape=x_shape, batch_size=args.batch_size, deterministic=True, no_pad=True)
 
@@ -122,11 +122,12 @@ def main(args):
 
 
 if __name__ == '__main__':
-    all_data = ['data/2p-dataset', 'data/H-dataset', 'data/NN_fullframe_extended', 'data/NN_mixed_dataset']
+    # default_data = ['data/2p-dataset', 'data/H-dataset', 'data/NN_fullframe_extended', 'data/NN_mixed_dataset']
+    default_data = ['data/NN_mixed_dataset_new']
 
     parser = argparse.ArgumentParser(description='')
     # data params
-    parser.add_argument('-d', '--data', nargs='+', default=all_data, help='Data directory (may be multiple)')
+    parser.add_argument('-d', '--data', nargs='+', default=default_data, help='Data directory (may be multiple)')
     parser.add_argument('-r', '--resolution', type=int, default=128, help='Input image resolution')
 
     # model params
