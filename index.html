@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <title>Pupillometry</title>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- Import the webpage's stylesheet -->
+    <link rel="stylesheet" href="css/main.css">
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+</head>
+
+<body>
+    <h1>Pupillometry</h1>
+
+    <section id="input-params">
+        <fieldset id="capture-params">
+            <legend>Input</legend>
+            <label for="file-input">Video File:</label><input type="file" accept="video/*" id="file-input">
+            <label for="webcamButton">or: </label><input type="button" id="webcamButton" value="Enable Webcam">
+        </fieldset>
+
+        <fieldset id="roi-params">
+            <legend>ROI</legend>
+            <label for="roi-left">X:</label><input type="number" min="0" id="roi-left">
+            <label for="roi-top">Y:</label><input type="number" min="0" id="roi-top">
+            <label for="roi-size">Size:</label><input type="number" min="0" id="roi-size">
+        </fieldset>
+    </section>
+
+    <section id="video-params">
+        <fieldset>
+            <legend>Preview</legend>
+            <div id="preview">
+                <div draggable="true" id="roi"></div>
+                <video id="webcam" controls="1" src="2p_gNex6.mp4"></video>
+            </div>
+        </fieldset>
+    </section>
+
+    <section id="controls">
+        <fieldset>
+            <legend>Controls</legend>
+            <input type="button" value="Clear Data" id="control-clear" accesskey="c">
+            <input type="button" value="Export CSV" id="control-export-csv" accesskey="e">
+
+            <label>Threshold: <input type="range" min="0" max="100" id="control-thr"><span id="control-thr-preview">0.50</span></label>
+            <label>Prediction Period: <input type="number" min="0" value=0 id="control-period"> ms</label>
+            <label>Live Plot: <input type="checkbox" checked="true" id="control-liveplot"></label>
+
+        </fieldset>
+
+        <fieldset>
+            <legend>Triggers</legend>
+            <input type="button" value="Trigger 1" id="control-trigger" accesskey="t" onclick="triggers[0]=1">
+            <input type="button" value="Trigger 2" id="control-trigger" accesskey="y" onclick="triggers[1]=1">
+        </fieldset>
+
+        <fieldset>
+            <legend>Info</legend>
+            <label>FPS: <span id="fps-preview"></span> <meter id="fps-meter" min=0 value=24 max=30></meter></label>
+        </fieldset>
+    </section>
+
+    <section id="outputs">
+        <fieldset id="out-map" class="out">
+            <legend>Output</legend>
+            <canvas id="output"></canvas>
+        </fieldset>
+
+        <fieldset id="out-graph" class="out">
+            <legend>Trace</legend>
+            <div id="chart-container"></div>
+        </fieldset>
+
+        <fieldset id="out-data" class="out">
+            <legend>Data</legend>
+            <div id="sticky-header">
+                <table id="trace">
+                    <thead>
+                        <th>timestamp</th>
+                        <th>timecode</th>
+                        <th>pupil-area</th>
+                        <th>blink</th>
+                        <th>t1</th>
+                        <th>t2</th>
+                    </thead>
+                    <tbody id="trace-data"></tbody>
+                </table>
+            </div>
+        </fieldset>
+
+    </section>
+
+    <!-- Import TensorFlow.js library -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs/dist/tf.min.js" type="text/javascript"></script>
+    <!-- Import the page's JavaScript to do some stuff -->
+    <script src="js/main.js" defer></script>
+</body>
+
+</html>

@@ -1,0 +1,158 @@
+body {
+    font-family: helvetica, arial, sans-serif;
+    color: #3D3D3D;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0 10px;
+    display: flex;
+    flex-flow: column wrap;
+    box-sizing: border-box;
+}
+
+h1 {
+    margin-bottom: 10px;
+    padding-left: 16px;
+}
+
+section {
+    width: 100%;
+    display: flex;
+    flex-flow: row nowrap;
+}
+
+fieldset {
+    border: none;
+    background-color: #eee;
+    margin: 5px;
+    line-height: 2em;
+}
+
+fieldset legend {
+    background-color: gainsboro;
+    text-transform: uppercase;
+    padding: 0px 10px;
+}
+
+input[type=number] {
+    width: 60px;
+}
+
+#input-params fieldset,
+#video-params fieldset,
+#controls fieldset {
+    flex-grow: 1;
+}
+
+#preview {
+    padding: 0;
+    border: 0;
+    position: relative;
+}
+
+#capture-params input,
+#roi-params input {
+    text-align: right;
+    margin-left: 5px;
+    margin-right: 50px;
+}
+
+#roi {
+    resize: both;
+    overflow: auto;
+    position: absolute;
+    /* border: 1px solid red; */
+    border: 0;
+    margin: 0;
+    background-color: red;
+    opacity: 0.5;
+    z-index: 20;
+    cursor: move;
+}
+
+video {
+    display: inline-block;
+    margin-right: 5px;
+    z-index: 10;
+}
+
+#controls fieldset > *:not(legend) {
+    margin: 0 16px;
+}
+
+#outputs {
+    height: 256px;
+    width: 100%;
+    padding-bottom: 30px;
+    justify-content: space-around;
+}
+
+.out {
+    padding: 0;
+    height: 100%;
+    background-color: transparent;
+}
+
+.out legend {
+    box-sizing: border-box;
+    width: 100%;
+    text-align: left;
+    padding-left: 22px;
+}
+
+#out-graph {
+    flex-grow: 1;
+}
+
+#out-map {
+    width: 100%;
+    max-width: 256px;
+    text-align: center;
+}
+
+#out-map canvas {
+    height: 100%;
+    display: inline-block;
+}
+
+#out-data {
+    /* min-width: 500px; */
+}
+
+#trace {
+    font-family: monospace;
+    font-size: small;
+    width: 100%;
+    border-collapse: collapse;
+}
+
+#sticky-header {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    overflow-y: scroll;
+}
+
+#trace th {
+    position: sticky;
+    top: 0;
+    background-color: gainsboro;
+    padding-top: 5px;
+    padding-bottom: 5px;
+}
+
+#trace th,
+#trace td {
+    text-align: right;
+    line-height: 1em;
+    white-space: nowrap;
+    min-width: 20px;
+    padding-right: 5px;
+    padding-left: 5px;
+}
+
+#trace-data tr:nth-child(even) {
+    background-color: #eee;
+}
