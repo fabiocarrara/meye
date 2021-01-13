@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
+from PIL import Image, ImageDraw
 from scipy.ndimage import center_of_mass, label, sum as area
 
 
@@ -43,6 +44,25 @@ def visualizable(x, y, alpha=(.5, .5), thr=0):
     mask = yy.max(axis=-1, keepdims=True) > thr  # blend only where a prediction is present
     # mask = mask[:, :, None]
     return np.where(mask, alpha[0] * xx + alpha[1] * yy, xx)
+
+
+def draw_predictions(image, predictions, thr=0):
+    x = image.convert('RGBA')
+
+    (maps,), ((eye, blink),) = predictions
+    alpha = maps.max(axis=-1, keepdims=True) > thr
+
+    zero_channel = np.zeros(image.size + (1,))
+    y = np.concatenate((maps, zero_channel, alpha), axis=-1)  # add a empty blue and masked alpha channel
+    y = (y * 255).astype(np.uint8)
+    y = Image.fromarray(y).convert('RGBA')
+
+    preview = Image.alpha_composite(x, y)
+    draw = ImageDraw.Draw(preview)
+    draw.text((5, 5), 'E: {: >3.1%}  B:{: >3.1%}'.format(eye, blink), fill=(0, 0, 255))
+    # draw.text((5, image.height - 5), ''.format(blink), fill=(255, 0, 0))
+
+    return preview
 
 
 def visualize(x, y, out=None):
