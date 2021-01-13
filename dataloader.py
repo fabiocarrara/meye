@@ -5,7 +5,7 @@ import keras
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from PIL import Image
+from PIL import Image, ImageEnhance
 from keras.preprocessing.image import load_img, img_to_array
 from scipy.ndimage import center_of_mass
 
@@ -97,7 +97,7 @@ def load_xy(datum, x_shape, deterministic=True, no_pad=False):
         # (this is constrained by the rotation angle and the original image size
         min_s = 15
         max_s = np.floor(min(w, h) / (sin_t + cos_t))
-        s = np.random.normal(loc=128, scale=40)
+        s = np.random.normal(loc=128, scale=50)
         s = np.clip(s, min_s, max_s)
 
         # print(angle, s)
@@ -152,7 +152,8 @@ def load_xy(datum, x_shape, deterministic=True, no_pad=False):
     x = x.resize(x_shape[:2])  # TODO: check interpolation type
     y = y.resize(x_shape[:2])
 
-    if not deterministic:  # random flip
+    if not deterministic:
+        # random flip
         if np.random.rand() < .5:
             x = x.transpose(Image.FLIP_LEFT_RIGHT)
             y = y.transpose(Image.FLIP_LEFT_RIGHT)
@@ -161,8 +162,17 @@ def load_xy(datum, x_shape, deterministic=True, no_pad=False):
             x = x.transpose(Image.FLIP_TOP_BOTTOM)
             y = y.transpose(Image.FLIP_TOP_BOTTOM)
 
+        brightness_factor = np.random.normal(loc=1.0, scale=0.4)
+        contrast_factor = np.random.normal(loc=1.0, scale=0.4)
+        sharpness_factor = np.random.normal(loc=1.0, scale=0.4)
+
+        x = ImageEnhance.Brightness(x).enhance(brightness_factor)
+        x = ImageEnhance.Contrast(x).enhance(contrast_factor)
+        x = ImageEnhance.Sharpness(x).enhance(sharpness_factor)
+
     x = np.expand_dims(np.array(x), -1) / 255.0
     y = np.array(y)[:, :, :2] / 255.0  # keep only red and green channels
+    y = y > 0.5
         
     y2 = datum[['eye', 'blink']]
 
