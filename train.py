@@ -47,7 +47,7 @@ def main(args):
     model = build_model(x_shape, y_shape, config)
     model.summary()
 
-    model.compile(optimizer='sgd', loss='binary_crossentropy', metrics={'out_tags': 'binary_accuracy'})
+    model.compile(optimizer='rmsprop', loss='binary_crossentropy', metrics={'out_tags': 'binary_accuracy'})
 
     log = exp.path_to('log.csv')
     best_ckpt_path = exp.path_to('best_weights.h5')
@@ -86,7 +86,7 @@ def main(args):
                             callbacks=callbacks,
                             validation_data=val_gen,
                             validation_steps=len(val_gen),
-                            workers=4)
+                            workers=12)
 
     model.load_weights(best_ckpt_path)
     if not os.path.exists(best_model_path):
