@@ -220,7 +220,7 @@ function KeyTDownHandler(event) {
 function KeyYDownHandler(event) {
     var key = event.key || event.keyCode;
     if (key == "Y" || key == "y") {
-        document.removeEventListener('keydown', KeyTDownHandler);
+        document.removeEventListener('keydown', KeyYDownHandler);
         setTrigger(1);
     }
     return true;
@@ -239,7 +239,7 @@ function KeyYUpHandler(event) {
     var key = event.key || event.keyCode;
     if (key == "Y" || key == "y") {
         resetTrigger(1);
-        document.addEventListener('keydown', KeyTDownHandler);
+        document.addEventListener('keydown', KeyYDownHandler);
     }
     return true;
 }
