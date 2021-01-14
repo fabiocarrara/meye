@@ -48,7 +48,7 @@ if (getUserMediaSupported()) {
 // Enable the live webcam view and start classification.
 function enableCam(event) {
 
-    video.removeEventListener('loadeddata', predictFrame);
+    video.removeEventListener('loadeddata', predictLoop);
 
     // Only continue if the model has finished loading.
     if (!model) {
@@ -63,7 +63,7 @@ function enableCam(event) {
     // Activate the webcam stream.
     navigator.mediaDevices.getUserMedia(constraints).then(function (stream) {
         video.srcObject = stream;
-        video.addEventListener('loadeddata', predictFrame);
+        video.addEventListener('loadeddata', predictLoop);
     });
 }
 
@@ -79,21 +79,31 @@ const rs = document.getElementById('roi-size');
 // const rw = document.getElementById('roi-width');
 // const rh = document.getElementById('roi-height');
 
+var updatePredictionTimeout;
+
+function updatePrediction(delay) {
+    delay = delay ?? 100;
+    clearTimeout(updatePredictionTimeout);
+    if (video.readyState >= 2) // video has data for at least one frame
+        updatePredictionTimeout = setTimeout(predictFrame, delay);
+}
 
 function updateRoi() {
-    var left = parseInt(rx.value);
-    var top = parseInt(ry.value);
-    var size = parseInt(rs.value);
+    let left = parseInt(rx.value);
+    let top = parseInt(ry.value);
+    let size = parseInt(rs.value);
 
     roi.style.left = left + 'px';
     roi.style.top = top + 'px';
     roi.style.width = size + 'px';
     roi.style.height = size + 'px';
+
+    updatePrediction();
 }
 
-rx.addEventListener('change', updateRoi);
-ry.addEventListener('change', updateRoi);
-rs.addEventListener('change', updateRoi);
+rx.addEventListener('input', updateRoi);
+ry.addEventListener('input', updateRoi);
+rs.addEventListener('input', updateRoi);
 
 var dragOffset = undefined;
 
@@ -105,7 +115,6 @@ function dragstart(event) {
     var offsetY = (parseInt(style.getPropertyValue("top")) - event.clientY);
 
     dragOffset = [offsetX, offsetY];
-    console.log(dragOffset);
 
     event.dataTransfer.setDragImage(new Image(), 0, 0);
     event.dataTransfer.effectAllowed = "move";
@@ -150,7 +159,7 @@ function drop(event) {
 let observer = new MutationObserver(function (mutations) {
     let width = video.videoWidth;
     let height = video.videoHeight;
-    let maxSize = Math.min(width, height);
+    let maxSize = Math.min(width - rx.value, height - ry.value);
     let elem = mutations[0].target;
 
     let newSize = Math.min(elem.offsetWidth, elem.offsetHeight);
@@ -159,6 +168,8 @@ let observer = new MutationObserver(function (mutations) {
     elem.style.width = newSize + 'px';
     elem.style.height = newSize + 'px';
     rs.value = newSize;
+
+    updatePrediction(30);
 }).observe(roi, {
     attributes: true
 });
@@ -192,7 +203,8 @@ const modelUrl = 'models/meye-segmentation_i128_s4_c1_f16_g1_a-relu/model.json'
 tf.loadLayersModel(modelUrl).then(function (loadedModel) {
     model = loadedModel;
     video.addEventListener('loadeddata', setRoi);
-    video.addEventListener('play', predictFrame);
+    video.addEventListener('play', predictLoop);
+    video.addEventListener('seeked', predictFrame);
 });
 
 var period = 0;
@@ -205,17 +217,14 @@ const rgb = tf.tensor1d([0.2989, 0.587, 0.114]);
 const _255 = tf.scalar(255);
 
 function predictFrame() {
+    return tf.tidy(() => {
+        let timestamp = new Date();
+        let timecode = video.currentTime;
 
-    let timestamp = new Date();
-    let timecode = video.currentTime;
-    let pupilArea = null;
-    let blinkProb = null;
+        let x = parseInt(rx.value);
+        let y = parseInt(ry.value);
+        let s = parseInt(rs.value);
 
-    var x = parseInt(rx.value);
-    var y = parseInt(ry.value);
-    var s = parseInt(rs.value);
-
-    tf.tidy(() => {
         // Now let's start classifying a frame in the stream.
         const frame = tf.browser.fromPixels(video, 3)
             .slice([y, x], [s, s])
@@ -231,21 +240,38 @@ function predictFrame() {
         pupil = tf.cast(pupil.greaterEqual(threshold), 'float32');
         tf.browser.toPixels(pupil.squeeze(), output);
 
-        // this is synchronous, mh..
-        pupilArea = pupil.sum().dataSync()[0];
-        blinkProb = blink.dataSync()[0];
+        let pupilArea = pupil.sum().data();
+        let blinkProb = blink.data();
+
+        return [timestamp, timecode, pupilArea, blinkProb];
+    });
+}
+
+function predictLoop() {
+    let outs = predictFrame();
+    Promise.all(outs).then(outs => {
+
+        let [timestamp, timecode, pupilArea, blinkProb] = outs;
+        pupilArea = pupilArea[0];
+        blinkProb = blinkProb[0];
+
+        // pause prediction when video is paused
         if (!video.paused)
             if (period == 0)
-                window.requestAnimationFrame(predictFrame);
+                window.requestAnimationFrame(predictLoop);
             else
-                timeoutHandler = setTimeout(predictFrame, period);
+                timeoutHandler = setTimeout(predictLoop, period);
 
+        // add samples to csv and chart data
+        let sample = [timestamp, timecode, pupilArea, blinkProb, triggers];
+        addSample(sample);
+
+        // reset triggers
+        triggers.fill(0);
+
+        // update FPS counter
+        framesThisSecond++;
     });
-
-    let sample = [timestamp, timecode, pupilArea, blinkProb, triggers];
-    addSample(sample);
-    triggers.fill(0);
-    framesThisSecond++;
 }
 
 /***************
@@ -262,7 +288,6 @@ const controlExportCsv = document.getElementById('control-export-csv');
 const controlWindow = document.getElementById('control-window');
 const controlWindowEnable = document.getElementById('control-window-enable');
 
-
 function clearData() {
     samples.length = 0; // clear array
     while (trace.firstChild) trace.removeChild(trace.lastChild);
@@ -278,11 +303,11 @@ function clearData() {
 function setThreshold(event) {
     threshold = event.target.value / 100;
     controlThresholdPreview.textContent = threshold.toFixed(2);
+    updatePrediction(5);
 }
 
 function setPeriod(event) {
     period = event.target.value;
-    console.log(period);
 }
 
 function exportCsv() {
@@ -366,8 +391,6 @@ function initChart() {
         };
         chartData.addColumn('number', 'trigger' + (i + 1));
     }
-
-    console.log(series);
 
     // Set chart options
     chartOptions = {
