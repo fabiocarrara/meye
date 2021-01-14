@@ -259,6 +259,9 @@ const controlThresholdPreview = document.getElementById('control-thr-preview');
 const controlPeriod = document.getElementById('control-period');
 const controlLivePlot = document.getElementById('control-liveplot');
 const controlExportCsv = document.getElementById('control-export-csv');
+const controlWindow = document.getElementById('control-window');
+const controlWindowEnable = document.getElementById('control-window-enable');
+
 
 function clearData() {
     samples.length = 0; // clear array
@@ -300,15 +303,33 @@ function exportCsv() {
     document.body.removeChild(a);
 }
 
+function togglePlotWindow(event) {
+    if (event.target.checked) {
+        controlWindow.disabled = false;
+        chartWindow = controlWindow.value;
+    } else {
+        controlWindow.disabled = true;
+        chartWindow = Infinity;
+    }
+}
+
+function resizePlotWindow(event) {
+    if (event.target.disabled == false)
+        chartWindow = event.target.value;
+}
+
 controlClear.addEventListener('click', clearData);
 controlThreshold.addEventListener('input', setThreshold);
 controlPeriod.addEventListener('change', setPeriod);
 controlExportCsv.addEventListener('click', exportCsv);
+controlWindowEnable.addEventListener('change', togglePlotWindow);
+controlWindow.addEventListener('change', resizePlotWindow);
 
 /***************
  * OUTPUTS
  **************/
 
+var chartWindow = Infinity;
 var chartContainer = document.getElementById('chart-container');
 var chartOptions = null;
 var chartData = null;
@@ -409,6 +430,10 @@ function addSample(sample) {
 
     if (!chart) initChart();
     chartData.addRow(flatSample.slice(1))
+
+    let N = chartData.getNumberOfRows();
+    if (N > chartWindow)
+        chartData.removeRows(0, N - chartWindow);
 
     if (controlLivePlot.checked)
         chart.draw(chartData, chartOptions);
