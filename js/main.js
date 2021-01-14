@@ -193,6 +193,71 @@ function setRoi() {
     updateRoi();
 }
 
+/**************
+ * TRIGGERS
+ *************/
+var nTriggers = 2;
+var triggers = new Array(nTriggers).fill(0);
+var triggersToReset = [];
+
+function setTrigger(triggerId) {
+    triggers[triggerId] = 1;
+}
+
+function resetTrigger(triggerId) {
+    triggers[triggerId] = 0;
+}
+
+function KeyTDownHandler(event) {
+    var key = event.key || event.keyCode;
+    if (key == "T" || key == "t") {
+        document.removeEventListener('keydown', KeyTDownHandler);
+        setTrigger(0);
+    }
+    return true;
+}
+
+function KeyYDownHandler(event) {
+    var key = event.key || event.keyCode;
+    if (key == "Y" || key == "y") {
+        document.removeEventListener('keydown', KeyTDownHandler);
+        setTrigger(1);
+    }
+    return true;
+}
+
+function KeyTUpHandler(event) {
+    var key = event.key || event.keyCode;
+    if (key == "T" || key == "t") {
+        resetTrigger(0);
+        document.addEventListener('keydown', KeyTDownHandler);
+    }
+    return true;
+}
+
+function KeyYUpHandler(event) {
+    var key = event.key || event.keyCode;
+    if (key == "Y" || key == "y") {
+        resetTrigger(1);
+        document.addEventListener('keydown', KeyTDownHandler);
+    }
+    return true;
+}
+
+document.addEventListener('keydown', KeyTDownHandler, false);
+document.addEventListener('keydown', KeyYDownHandler, false);
+document.addEventListener('keyup', KeyTUpHandler, false);
+document.addEventListener('keyup', KeyYUpHandler, false);
+
+function spikeTrigger(event) {
+    const triggerId = parseInt(event.target.dataset.triggerId);
+    triggers[triggerId] = 1;
+    triggersToReset.push(triggerId);
+}
+
+document.getElementById('control-trigger-1').addEventListener('click', spikeTrigger);
+document.getElementById('control-trigger-2').addEventListener('click', spikeTrigger);
+
 
 /****************
  * MODEL
@@ -209,8 +274,6 @@ tf.loadLayersModel(modelUrl).then(function (loadedModel) {
 
 var period = 0;
 var timeoutHandler = null;
-var nTriggers = 2;
-var triggers = new Array(nTriggers).fill(0);
 var threshold = 0.5;
 
 const rgb = tf.tensor1d([0.2989, 0.587, 0.114]);
@@ -267,7 +330,8 @@ function predictLoop() {
         addSample(sample);
 
         // reset triggers
-        triggers.fill(0);
+        triggersToReset.forEach(resetTrigger);
+        triggersToReset = [];
 
         // update FPS counter
         framesThisSecond++;
