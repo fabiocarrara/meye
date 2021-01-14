@@ -1,7 +1,8 @@
 console.log('Loaded TensorFlow.js - version: ' + tf.version.tfjs);
 
 const enableWebcamButton = document.getElementById('webcamButton');
-const fileInput = document.getElementById('file-input')
+const fileInput = document.getElementById('file-input');
+const inputError = document.getElementById('input-error');
 const video = document.getElementById('webcam');
 const output = document.getElementById('output');
 const traceContainer = document.getElementById('sticky-header');
@@ -13,16 +14,19 @@ video.addEventListener('loadeddata', setRoi);
  * INPUTS
  *****************/
 
-fileInput.addEventListener('change', function () {
+fileInput.addEventListener('change', function (event) {
+    inputError.classList.add('hide');
     var file = this.files[0];
     if (!video.canPlayType(file.type)) {
         console.log('cannot play ' + file.type);
-        return;
+        inputError.innerHTML = 'The selected file type (' + file.type + ') cannot be played by your browser. Try transcoding it to a <a href="https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Video_codecs">commonly used web codec</a>.';
+        inputError.classList.remove('hide');
+        return false;
     }
 
     var URL = window.URL || window.webkitURL;
     var fileUrl = URL.createObjectURL(file);
-    console.log(fileUrl);
+    video.srcObject = null;
     video.src = fileUrl;
 });
 
@@ -50,9 +54,6 @@ function enableCam(event) {
     if (!model) {
         return;
     }
-
-    // Hide the button once clicked.
-    event.target.classList.add('removed');
 
     // getUsermedia parameters to force video but not audio.
     const constraints = {
