@@ -260,6 +260,11 @@ var model = undefined;
 const modelUrl = 'models/meye-segmentation_i128_s4_c1_f16_g1_a-relu/model.json'
 tf.loadLayersModel(modelUrl).then(function (loadedModel) {
     model = loadedModel;
+    tf.tidy(() => {
+        model.predict(tf.zeros([1, 128, 128, 1]))[0].data().then(() => {
+            document.getElementById('loading').style.display = 'none';
+        });
+    });
     video.addEventListener('play', predictLoop);
     video.addEventListener('seeked', predictFrame);
 });
