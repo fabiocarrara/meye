@@ -374,6 +374,16 @@ function setPeriod(event) {
     period = event.target.value;
 }
 
+function strTimestamp() {
+    let now = new Date();
+    let y = String(now.getFullYear());
+    let M = String(now.getMonth() + 1).padStart(2, '0');
+    let d = String(now.getDate()).padStart(2, '0');
+    let h = String(now.getHours()).padStart(2, '0');
+    let m = String(now.getMinutes()).padStart(2, '0');
+    return `${y}${M}${d}-${h}${m}`;
+}
+
 function exportCsv() {
     let header = ['timestamp', 'timecode', 'pupil-area', 'blink', 'trigger']
     let csvHeader = ["data:text/csv;charset=utf-8," + header.join(',')];
@@ -383,8 +393,18 @@ function exportCsv() {
     let csvContent = csvHeader.concat(csvLines).join('\r\n');
     let csvUri = encodeURI(csvContent);
 
+    let usingWebcam = video.srcObject != null;
+    let filename;
+
+    if (usingWebcam)
+        filename = strTimestamp() + ".csv";
+    else if (fileInput.value)
+        filename = fileInput.value.split(/[\\/]/).pop().replace(/\.[^/.]+$/, ".csv");
+    else
+        filename = "export.csv";
+
     let a = document.createElement("a");
-    a.download = "export.csv";
+    a.download = filename;
     a.href = csvUri;
     a.style.display = "none";
     document.body.appendChild(a);
