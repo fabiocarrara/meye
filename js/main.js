@@ -116,6 +116,10 @@ function resetRoi() {
 }
 
 video.addEventListener('loadeddata', resetRoi);
+video.addEventListener('loadeddata', () => {
+    video.muted = true;
+    video.volume = 0;
+})
 
 var dragOffset = undefined;
 
