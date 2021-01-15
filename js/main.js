@@ -83,7 +83,7 @@ function updatePrediction(delay) {
     delay = delay ?? 100;
     clearTimeout(updatePredictionTimeout);
     if (video.readyState >= 2) // video has data for at least one frame
-        updatePredictionTimeout = setTimeout(predictFrame, delay);
+        updatePredictionTimeout = setTimeout(predictOnce, delay);
 }
 
 function updateRoi() {
@@ -189,6 +189,35 @@ roi.addEventListener('dragstart', dragstart);
 document.body.addEventListener('dragover', dragover);
 document.body.addEventListener('drop', drop);
 
+/****************
+ * PUPIL LOCATOR
+ ***************/
+
+const pupilXLocator = document.getElementById('pupil-x');
+const pupilYLocator = document.getElementById('pupil-y');
+
+const pupilXLabel = pupilXLocator.firstElementChild;
+const pupilYLabel = pupilYLocator.firstElementChild;
+
+function updatePupilLocator(x, y) {
+    if (x < 0 || y < 0) {
+        pupilXLocator.style.display = 'none';
+        pupilYLocator.style.display = 'none';
+    } else {
+        pupilXLocator.style.left = x + 'px';
+        pupilXLocator.style.height = video.videoHeight + 'px';
+        pupilXLabel.textContent = `X=${x.toFixed(1)}`;
+
+        pupilYLocator.style.width = video.videoWidth + 'px';
+        pupilYLocator.style.top = y + 'px';
+        pupilYLabel.textContent = `Y=${y.toFixed(1)}`;
+
+        pupilXLocator.style.display = 'block';
+        pupilYLocator.style.display = 'block';
+
+    }
+    // console.log(x, y);
+}
 
 /**************
  * TRIGGERS
@@ -270,7 +299,7 @@ tf.loadLayersModel(modelUrl).then(function (loadedModel) {
         });
     });
     video.addEventListener('play', predictLoop);
-    video.addEventListener('seeked', predictFrame);
+    video.addEventListener('seeked', predictOnce);
 });
 
 var period = 0;
@@ -281,44 +310,64 @@ const rgb = tf.tensor1d([0.2989, 0.587, 0.114]);
 const _255 = tf.scalar(255);
 
 function predictFrame() {
+    let timestamp = new Date();
+    let timecode = video.currentTime;
+
+    let x = parseInt(rx.value);
+    let y = parseInt(ry.value);
+    let s = parseInt(rs.value);
+
+    // Now let's start classifying a frame in the stream.
+    const frame = tf.browser.fromPixels(video, 3)
+        .slice([y, x], [s, s])
+        .resizeBilinear([128, 128])
+        .mul(rgb).sum(2)
+        .expandDims(0).expandDims(-1)
+        .toFloat().div(_255);
+
+    let [maps, eb] = model.predict(frame);
+    let [pupil, glint] = maps.squeeze().split(2, 2);
+    let [eye, blink] = eb.squeeze().split(2);
+
+    pupil = tf.cast(pupil.greaterEqual(threshold), 'float32').squeeze();
+
+    let m00 = pupil.sum();
+    let m01 = tf.range(0, 128).expandDims(0).mul(pupil).sum();
+    let m10 = tf.range(0, 128).expandDims(1).mul(pupil).sum();
+
+    let pupilX = m01.div(m00).mul(s / 128).add(x).data();
+    let pupilY = m10.div(m00).mul(s / 128).add(y).data();
+
+    let pupilArea = m00.data();
+    let blinkProb = blink.data();
+
+    let drawn = tf.browser.toPixels(pupil, output);
+    return [drawn, timestamp, timecode, pupilArea, blinkProb, pupilX, pupilY];
+}
+
+function predictOnce() {
     if (!model) return;
-    return tf.tidy(() => {
-        let timestamp = new Date();
-        let timecode = video.currentTime;
-
-        let x = parseInt(rx.value);
-        let y = parseInt(ry.value);
-        let s = parseInt(rs.value);
-
-        // Now let's start classifying a frame in the stream.
-        const frame = tf.browser.fromPixels(video, 3)
-            .slice([y, x], [s, s])
-            .resizeBilinear([128, 128])
-            .mul(rgb).sum(2)
-            .expandDims(0).expandDims(-1)
-            .toFloat().div(_255);
-
-        let [maps, eb] = model.predict(frame);
-        let [pupil, glint] = maps.squeeze().split(2, 2);
-        let [eye, blink] = eb.squeeze().split(2);
-
-        pupil = tf.cast(pupil.greaterEqual(threshold), 'float32');
-        tf.browser.toPixels(pupil.squeeze(), output);
-
-        let pupilArea = pupil.sum().data();
-        let blinkProb = blink.data();
-
-        return [timestamp, timecode, pupilArea, blinkProb];
-    });
+    let outs = tf.tidy(predictFrame);
+    Promise.all(outs).then(outs => {
+        let [drawn, timestamp, timecode, pupilArea, blinkProb, pupilX, pupilY] = outs;
+        pupilArea = pupilArea[0];
+        pupilX = (pupilArea > 0) ? pupilX[0] : -1;
+        pupilY = (pupilArea > 0) ? pupilY[0] : -1;
+        updatePupilLocator(pupilX, pupilY);
+    })
 }
 
 function predictLoop() {
-    let outs = predictFrame();
+    if (!model) return;
+    let outs = tf.tidy(predictFrame);
     Promise.all(outs).then(outs => {
 
-        let [timestamp, timecode, pupilArea, blinkProb] = outs;
+        let [drawn, timestamp, timecode, pupilArea, blinkProb, pupilX, pupilY] = outs;
         pupilArea = pupilArea[0];
         blinkProb = blinkProb[0];
+        pupilX = (pupilArea > 0) ? pupilX[0] : -1;
+        pupilY = (pupilArea > 0) ? pupilY[0] : -1;
+        updatePupilLocator(pupilX, pupilY);
 
         // pause prediction when video is paused
         if (!video.paused)
@@ -328,7 +377,7 @@ function predictLoop() {
                 timeoutHandler = setTimeout(predictLoop, period);
 
         // add samples to csv and chart data
-        let sample = [timestamp, timecode, pupilArea, blinkProb, triggers];
+        let sample = [timestamp, timecode, pupilArea, blinkProb, pupilX, pupilY, triggers];
         addSample(sample);
 
         // reset triggers
@@ -387,7 +436,7 @@ function strTimestamp() {
 }
 
 function exportCsv() {
-    let header = ['timestamp', 'timecode', 'pupil-area', 'blink', 'trigger']
+    let header = ['timestamp', 'timecode', 'pupil-area', 'blink', 'pupil-x', 'pupil-y', 'trigger1', 'trigger2']
     let csvHeader = ["data:text/csv;charset=utf-8," + header.join(',')];
     let csvLines = samples
         .map(r => [r[0].toISOString()].concat(r.slice(1)))
@@ -461,6 +510,8 @@ function initChart() {
     chartData.addColumn('number', 'timecode');
     chartData.addColumn('number', 'pupil-area');
     chartData.addColumn('number', 'blink');
+    // chartData.addColumn('number', 'pupil-x');
+    // chartData.addColumn('number', 'pupil-y');
 
     let series = {
         0: {
@@ -520,9 +571,9 @@ var samples = [];
 
 function addSample(sample) {
 
-    let [timestamp, timecode, pupilArea, blinkProb, triggers] = sample;
-    let flatSample = sample.slice(0, -1).concat(sample.slice(-1)[0]);
+    let [timestamp, timecode, pupilArea, blinkProb, pupilX, pupilY, triggers] = sample;
 
+    let flatSample = sample.slice(0, -1).concat(triggers);
     samples.push(flatSample);
 
     sampleRow = document.createElement('tr');
@@ -531,13 +582,16 @@ function addSample(sample) {
         '<td>' + timecode.toFixed(3) + '</td>' +
         '<td>' + pupilArea.toFixed(2) + '</td>' +
         '<td>' + blinkProb.toFixed(1) + '</td>' +
+        '<td>' + pupilX.toFixed(1) + '</td>' +
+        '<td>' + pupilY.toFixed(1) + '</td>' +
         triggers.map(t => '<td>' + t + '</td>').join(''));
 
     trace.appendChild(sampleRow);
     traceContainer.scrollTop = traceContainer.scrollHeight;
 
     if (!chart) initChart();
-    chartData.addRow(flatSample.slice(1))
+    let chartSample = [timecode, pupilArea, blinkProb].concat(triggers);
+    chartData.addRow(chartSample);
 
     let N = chartData.getNumberOfRows();
     if (N > chartWindow)
