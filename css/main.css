@@ -80,6 +80,10 @@ input[type=number] {
     cursor: move;
 }
 
+[draggable=true] {
+    -khtml-user-drag: element;
+}
+
 video {
     display: inline-block;
     margin-right: 5px;

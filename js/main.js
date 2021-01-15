@@ -8,8 +8,6 @@ const output = document.getElementById('output');
 const traceContainer = document.getElementById('sticky-header');
 const trace = document.getElementById('trace-data');
 
-video.addEventListener('loadeddata', setRoi);
-
 /******************
  * INPUTS
  *****************/
@@ -105,10 +103,24 @@ rx.addEventListener('input', updateRoi);
 ry.addEventListener('input', updateRoi);
 rs.addEventListener('input', updateRoi);
 
+function resetRoi() {
+    let width = video.videoWidth;
+    let height = video.videoHeight;
+    let side = Math.min(width, height);
+
+    rx.value = Math.floor((width - side) / 2);
+    ry.value = Math.floor((height - side) / 2);
+    rs.value = side;
+
+    updateRoi();
+}
+
+video.addEventListener('loadeddata', resetRoi);
+
 var dragOffset = undefined;
 
 function dragstart(event) {
-
+    event.dataTransfer.setData('application/node type', this);
     var style = window.getComputedStyle(event.target, null);
 
     var offsetX = (parseInt(style.getPropertyValue("left")) - event.clientX);
@@ -120,7 +132,7 @@ function dragstart(event) {
     event.dataTransfer.effectAllowed = "move";
 }
 
-function drag(event) {
+function dragover(event) {
     if (dragOffset) {
         let [offsetX, offsetY] = dragOffset;
 
@@ -139,15 +151,10 @@ function drag(event) {
 
         rx.value = newX;
         ry.value = newY;
+
+        event.preventDefault();
+        return false;
     }
-
-    event.preventDefault();
-    return false;
-}
-
-function dragover(event) {
-    event.preventDefault();
-    event.dataTransfer.dropEffect = "move";
 }
 
 function drop(event) {
@@ -175,23 +182,9 @@ let observer = new MutationObserver(function (mutations) {
 });
 
 roi.addEventListener('dragstart', dragstart);
-document.body.addEventListener('drag', drag);
 document.body.addEventListener('dragover', dragover);
 document.body.addEventListener('drop', drop);
 
-
-function setRoi() {
-    let width = this.videoWidth;
-    let height = this.videoHeight;
-    let side = Math.min(width, height);
-
-    rx.value = Math.floor((width - side) / 2);
-    ry.value = Math.floor((height - side) / 2);
-    rs.value = side;
-    // rw.value = side;
-    // rh.value = side;
-    updateRoi();
-}
 
 /**************
  * TRIGGERS
@@ -267,7 +260,6 @@ var model = undefined;
 const modelUrl = 'models/meye-segmentation_i128_s4_c1_f16_g1_a-relu/model.json'
 tf.loadLayersModel(modelUrl).then(function (loadedModel) {
     model = loadedModel;
-    video.addEventListener('loadeddata', setRoi);
     video.addEventListener('play', predictLoop);
     video.addEventListener('seeked', predictFrame);
 });
@@ -280,6 +272,7 @@ const rgb = tf.tensor1d([0.2989, 0.587, 0.114]);
 const _255 = tf.scalar(255);
 
 function predictFrame() {
+    if (!model) return;
     return tf.tidy(() => {
         let timestamp = new Date();
         let timecode = video.currentTime;
@@ -532,7 +525,6 @@ function addSample(sample) {
         triggers.map(t => '<td>' + t + '</td>').join(''));
 
     trace.appendChild(sampleRow);
-    // console.log(traceContainer.scrollTop, traceContainer.scrollHeight);
     traceContainer.scrollTop = traceContainer.scrollHeight;
 
     if (!chart) initChart();
