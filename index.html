@@ -34,7 +34,9 @@
         <fieldset>
             <legend>Preview</legend>
             <div id="preview">
-                <div draggable="true" id="roi"></div>
+                <div draggable="true" id="roi">
+                    <canvas id="output"></canvas>
+                </div>
                 <div id="pupil-x"><span>x=13.0</span></div>
                 <div id="pupil-y"><span>y=24.1</span></div>
                 <video id="webcam" controls="1" src="2p_gNex6.mp4"></video>
@@ -69,7 +71,7 @@
     <section id="outputs">
         <fieldset id="out-map" class="out">
             <legend>Output</legend>
-            <canvas id="output"></canvas>
+            <!-- <canvas id="output"></canvas> -->
         </fieldset>
 
         <fieldset id="out-graph" class="out">

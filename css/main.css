@@ -90,13 +90,22 @@ input[type=number] {
     resize: both;
     overflow: auto;
     position: absolute;
-    /* border: 1px solid red; */
-    border: 0;
+    border: 1px dashed red;
     margin: 0;
+    padding: 0;
     background-color: red;
     opacity: 0.5;
-    z-index: 20;
+    z-index: 7;
     cursor: move;
+    box-sizing: content-box;
+    overflow: hidden;
+}
+
+#roi canvas {
+    width: 100%;
+    height: 100%;
+    border: 0;
+    box-sizing: border-box;
 }
 
 [draggable=true] {

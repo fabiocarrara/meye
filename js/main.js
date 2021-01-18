@@ -90,9 +90,12 @@ function updateRoi() {
     let left = parseInt(rx.value);
     let top = parseInt(ry.value);
     let size = parseInt(rs.value);
+    let roiStyle = window.getComputedStyle(roi);
+    let border = roiStyle.borderWidth || roiStyle.borderTopWidth;
+    border = Math.round(parseFloat(border));
 
-    roi.style.left = left + 'px';
-    roi.style.top = top + 'px';
+    roi.style.left = (left - border) + 'px';
+    roi.style.top = (top - border) + 'px';
     roi.style.width = size + 'px';
     roi.style.height = size + 'px';
 
@@ -125,10 +128,10 @@ var dragOffset = undefined;
 
 function dragstart(event) {
     event.dataTransfer.setData('application/node type', this);
-    var style = window.getComputedStyle(event.target, null);
+    let style = window.getComputedStyle(event.target, null);
 
-    var offsetX = (parseInt(style.getPropertyValue("left")) - event.clientX);
-    var offsetY = (parseInt(style.getPropertyValue("top")) - event.clientY);
+    let offsetX = (parseInt(style.getPropertyValue("left")) - event.clientX);
+    let offsetY = (parseInt(style.getPropertyValue("top")) - event.clientY);
 
     dragOffset = [offsetX, offsetY];
 
@@ -141,20 +144,24 @@ function dragover(event) {
         let [offsetX, offsetY] = dragOffset;
 
         let size = parseInt(rs.value);
-        let maxX = video.videoWidth - size;
-        let maxY = video.videoHeight - size;
+        let roiStyle = window.getComputedStyle(roi);
+        let border = roiStyle.borderWidth || roiStyle.borderTopWidth;
+        border = Math.round(parseFloat(border));
 
         let newX = Math.floor(event.clientX + parseInt(offsetX));
         let newY = Math.floor(event.clientY + parseInt(offsetY));
 
-        newX = Math.max(0, Math.min(newX, maxX));
-        newY = Math.max(0, Math.min(newY, maxY));
+        let maxX = video.videoWidth - size + border;
+        let maxY = video.videoHeight - size + border;
+
+        newX = Math.max(-border, Math.min(newX, maxX));
+        newY = Math.max(-border, Math.min(newY, maxY));
 
         roi.style.left = newX + 'px';
         roi.style.top = newY + 'px';
 
-        rx.value = newX;
-        ry.value = newY;
+        rx.value = newX + border;
+        ry.value = newY + border;
 
         event.preventDefault();
         return false;
@@ -173,7 +180,7 @@ let observer = new MutationObserver(function (mutations) {
     let maxSize = Math.min(width - rx.value, height - ry.value);
     let elem = mutations[0].target;
 
-    let newSize = Math.min(elem.offsetWidth, elem.offsetHeight);
+    let newSize = Math.min(elem.clientWidth, elem.clientHeight);
     newSize = Math.min(newSize, maxSize);
 
     elem.style.width = newSize + 'px';
@@ -214,9 +221,7 @@ function updatePupilLocator(x, y) {
 
         pupilXLocator.style.display = 'block';
         pupilYLocator.style.display = 'block';
-
     }
-    // console.log(x, y);
 }
 
 /**************
