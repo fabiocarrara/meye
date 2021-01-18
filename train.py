@@ -11,6 +11,7 @@ matplotlib.use('Agg')
 
 import numpy as np
 import pandas as pd
+from keras import backend as K
 from keras.models import load_model
 from keras.callbacks import ModelCheckpoint, ReduceLROnPlateau, CSVLogger
 from sklearn.model_selection import train_test_split
@@ -20,6 +21,20 @@ from dataloader import DataGen, load_datasets
 from model import build_model
 from utils import visualize
 from expman import Experiment
+
+
+def iou_coef(y_true, y_pred, smooth=0.001):
+    intersection = K.sum(K.abs(y_true * y_pred), axis=[1, 2, 3])
+    union = K.sum(y_true, [1, 2, 3]) + K.sum(y_pred, [1, 2, 3]) - intersection
+    iou = K.mean((intersection + smooth) / (union + smooth), axis=0)
+    return iou
+
+
+def dice_coef(y_true, y_pred, smooth=0.001):
+    intersection = K.sum(y_true * y_pred, axis=[1, 2, 3])
+    union = K.sum(y_true, axis=[1, 2, 3]) + K.sum(y_pred, axis=[1, 2, 3])
+    dice = K.mean((2. * intersection + smooth) / (union + smooth), axis=0)
+    return dice
 
 
 def main(args):
@@ -47,7 +62,10 @@ def main(args):
     model = build_model(x_shape, y_shape, config)
     model.summary()
 
-    model.compile(optimizer='rmsprop', loss='binary_crossentropy', metrics={'out_tags': 'binary_accuracy'})
+    model.compile(optimizer='rmsprop',
+                  loss='binary_crossentropy',
+                  metrics={'out_mask': [iou_coef, dice_coef],
+                           'out_tags': 'binary_accuracy'})
 
     log = exp.path_to('log.csv')
     best_ckpt_path = exp.path_to('best_weights.h5')
