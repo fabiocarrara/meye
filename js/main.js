@@ -336,43 +336,139 @@ function predictFrame() {
 
     pupil = tf.cast(pupil.greaterEqual(threshold), 'float32').squeeze();
 
-    let m00 = pupil.sum();
-    let m01 = tf.range(0, 128).expandDims(0).mul(pupil).sum();
-    let m10 = tf.range(0, 128).expandDims(1).mul(pupil).sum();
-
-    let pupilX = m01.div(m00).mul(s / 128).add(x).data();
-    let pupilY = m10.div(m00).mul(s / 128).add(y).data();
-
-    let pupilArea = m00.data();
+    let pupilArea = pupil.sum().data();
     let blinkProb = blink.data();
 
-    let drawn = tf.browser.toPixels(pupil, output);
-    return [drawn, timestamp, timecode, pupilArea, blinkProb, pupilX, pupilY];
+    pupil = pupil.array();
+
+    // let drawn = tf.browser.toPixels(pupil, output);
+    return [pupil, timestamp, timecode, pupilArea, blinkProb];
+}
+
+function keepLargestComponent(array) {
+    let nRows = array.length;
+    let nCols = array[0].length;
+
+    // invert binary map
+    for (let i = 0; i < nRows; ++i)
+        for (let j = 0; j < nCols; ++j)
+            array[i][j] = -array[i][j];
+
+    let currentLabel = 1;
+
+    function test(array, i, j, label) {
+        if (array[i] && array[i][j] === -1) {
+            array[i][j] = label;
+            return (1 +
+                test(array, i - 1, j, label) +
+                test(array, i + 1, j, label) +
+                test(array, i, j - 1, label) +
+                test(array, i, j + 1, label));
+        }
+        return 0;
+    }
+
+    // let counts = [0];
+    // let total = 0;
+    let maxCount = 0;
+    let maxLabel = 0;
+
+    for (let i = 0; i < nRows; ++i) {
+        for (let j = 0; j < nCols; ++j) {
+            let count = test(array, i, j, currentLabel);
+            if (count > 0) {
+                if (count > maxCount) {
+                    maxCount = count;
+                    maxLabel = currentLabel;
+                }
+
+                // total += count;
+                // counts.push(count);
+                currentLabel++;
+            }
+        }
+    }
+
+    // counts[0] = nRows * nCols - total;
+
+    // keep only largest label
+    for (let i = 0; i < nRows; ++i) {
+        for (let j = 0; j < nCols; ++j) {
+            // array[i][j] = (array[i][j] == maxLabel) ? 1 : 0;
+            if (array[i][j]) // for debug purposes
+                array[i][j] = (array[i][j] == maxLabel) ? 1 : 0.3;
+        }
+    }
+}
+
+function findCentroid(array) {
+    let nRows = array.length;
+    let nCols = array[0].length;
+
+    let m01 = 0,
+        m10 = 0,
+        m00 = 0;
+    for (let i = 0; i < nRows; ++i) {
+        for (let j = 0; j < nCols; ++j) {
+            let v = (array[i][j] == 1) ? 1 : 0;
+            m01 += j * v;
+            m10 += i * v;
+            m00 += v;
+        }
+    }
+
+    return [(m01 / m00), (m10 / m00)];
 }
 
 function predictOnce() {
     if (!model) return;
+
     let outs = tf.tidy(predictFrame);
-    Promise.all(outs).then(outs => {
-        let [drawn, timestamp, timecode, pupilArea, blinkProb, pupilX, pupilY] = outs;
+
+    return Promise.all(outs).then(outs => {
+        let [pupil, timestamp, timecode, pupilArea, blinkProb] = outs;
+
         pupilArea = pupilArea[0];
-        pupilX = (pupilArea > 0) ? pupilX[0] : -1;
-        pupilY = (pupilArea > 0) ? pupilY[0] : -1;
+        blinkProb = blinkProb[0];
+
+        let pupilX = -1,
+            pupilY = -1;
+
+        if (pupilArea > 0) {
+            keepLargestComponent(pupil);
+
+            [pupilX, pupilY] = findCentroid(pupil);
+            let x = parseInt(rx.value);
+            let y = parseInt(ry.value);
+            let s = parseInt(rs.value);
+
+            pupilX = (pupilX * s / 128) + x;
+            pupilY = (pupilY * s / 128) + y;
+        }
+
         updatePupilLocator(pupilX, pupilY);
-    })
+
+        // for Array, toPixel wants [0, 255] values
+        for (let i = 0; i < pupil.length; ++i)
+            for (let j = 0; j < pupil[0].length; ++j)
+                if (pupil[i][j] == 1)
+                    pupil[i][j] = [255, 0, 0]; // red
+                else {
+                    let v = Math.round(pupil[i][j] * 255);
+                    pupil[i][j] = [v, v, v]; // gray
+                }
+
+        tf.browser.toPixels(pupil, output);
+
+        return [timestamp, timecode, pupilArea, blinkProb, pupilX, pupilY];
+    });
 }
 
 function predictLoop() {
     if (!model) return;
-    let outs = tf.tidy(predictFrame);
-    Promise.all(outs).then(outs => {
 
-        let [drawn, timestamp, timecode, pupilArea, blinkProb, pupilX, pupilY] = outs;
-        pupilArea = pupilArea[0];
-        blinkProb = blinkProb[0];
-        pupilX = (pupilArea > 0) ? pupilX[0] : -1;
-        pupilY = (pupilArea > 0) ? pupilY[0] : -1;
-        updatePupilLocator(pupilX, pupilY);
+    predictOnce().then(outs => {
+        let [timestamp, timecode, pupilArea, blinkProb, pupilX, pupilY] = outs;
 
         // pause prediction when video is paused
         if (!video.paused)
