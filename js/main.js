@@ -294,18 +294,27 @@ document.getElementById('control-trigger-2').addEventListener('click', spikeTrig
  * MODEL
  ***************/
 
+const loadingOverlay = document.getElementById('loading');
+const modelSelect = document.getElementById('modelSelector');
 var model = undefined;
-const modelUrl = 'models/meye-segmentation_i128_s4_c1_f16_g1_a-relu/model.json'
-tf.loadLayersModel(modelUrl).then(function (loadedModel) {
-    model = loadedModel;
-    tf.tidy(() => {
-        model.predict(tf.zeros([1, 128, 128, 1]))[0].data().then(() => {
-            document.getElementById('loading').style.display = 'none';
+
+function loadModel() {
+    loadingOverlay.style.display = 'inherit';
+    let modelUrl = 'models/' + modelSelect.value + '/model.json';
+
+    tf.loadGraphModel(modelUrl).then(function (loadedModel) {
+        model = loadedModel;
+        tf.tidy(() => {
+            model.predict(tf.zeros([1, 128, 128, 1]))[0].data().then(() => {
+                loadingOverlay.style.display = 'none';
+                predictOnce();
+            });
         });
     });
-    video.addEventListener('play', predictLoop);
-    video.addEventListener('seeked', predictOnce);
-});
+}
+
+modelSelect.addEventListener('change', loadModel);
+loadModel();
 
 var period = 0;
 var timeoutHandler = null;
@@ -331,7 +340,14 @@ function predictFrame() {
         .toFloat().div(_255);
 
     let [maps, eb] = model.predict(frame);
-    let [pupil, glint] = maps.squeeze().split(2, 2);
+
+    // some older models have their output order swapped
+    if (maps.rank < 4)[maps, eb] = [eb, maps];
+
+    // let [pupil, glint] = maps.squeeze().split(2, 2);
+    // take first channel in last dimension
+    let pupil = maps.slice([0, 0, 0, 0], [-1, -1, -1, 1]).squeeze();
+
     let [eye, blink] = eb.squeeze().split(2);
 
     pupil = tf.cast(pupil.greaterEqual(threshold), 'float32').squeeze();
@@ -392,13 +408,20 @@ function keepLargestComponent(array) {
     // counts[0] = nRows * nCols - total;
 
     // keep only largest label
+    let newArea = 0;
     for (let i = 0; i < nRows; ++i) {
         for (let j = 0; j < nCols; ++j) {
             // array[i][j] = (array[i][j] == maxLabel) ? 1 : 0;
-            if (array[i][j]) // for debug purposes
-                array[i][j] = (array[i][j] == maxLabel) ? 1 : 0.3;
+            if (array[i][j] > 0)
+                if (array[i][j] == maxLabel) {
+                    array[i][j] = 1;
+                    ++newArea;
+                } else
+                    array[i][j] = 0.3; // for debug purposes
         }
     }
+
+    return newArea;
 }
 
 function findCentroid(array) {
@@ -435,7 +458,9 @@ function predictOnce() {
             pupilY = -1;
 
         if (pupilArea > 0) {
-            keepLargestComponent(pupil);
+
+            if (controlMorphology.checked)
+                pupilArea = keepLargestComponent(pupil);
 
             [pupilX, pupilY] = findCentroid(pupil);
             let x = parseInt(rx.value);
@@ -467,6 +492,12 @@ function predictOnce() {
 function predictLoop() {
     if (!model) return;
 
+    // playback is started but video is not loaded, wait
+    if (!video.paused && video.readyState < 3) {
+        window.requestAnimationFrame(predictLoop)
+        return;
+    }
+
     predictOnce().then(outs => {
         let [timestamp, timecode, pupilArea, blinkProb, pupilX, pupilY] = outs;
 
@@ -490,19 +521,27 @@ function predictLoop() {
     });
 }
 
+video.addEventListener('play', predictLoop);
+video.addEventListener('seeked', predictOnce);
+
 /***************
  * CONTROLS
  **************/
 
-const controlClear = document.getElementById('control-clear');
-const controlTrigger = document.getElementById('control-trigger');
+const controlPeriod = document.getElementById('control-period');
 const controlThreshold = document.getElementById('control-thr');
 const controlThresholdPreview = document.getElementById('control-thr-preview');
-const controlPeriod = document.getElementById('control-period');
-const controlLivePlot = document.getElementById('control-liveplot');
+const controlMorphology = document.getElementById('control-morphology');
+
+const controlPlotAutoUpdate = document.getElementById('control-plot-autoupdate');
+const controlPlotWindow = document.getElementById('control-plot-window');
+const controlPlotWindowEnable = document.getElementById('control-plot-window-enable');
+const controlPlotUpdate = document.getElementById('control-plot-update');
+
+const controlAutoUpdateTable = document.getElementById('control-table-autoupdate');
+const controlTableUpdate = document.getElementById('control-table-update');
 const controlExportCsv = document.getElementById('control-export-csv');
-const controlWindow = document.getElementById('control-window');
-const controlWindowEnable = document.getElementById('control-window-enable');
+const controlClear = document.getElementById('control-clear');
 
 function clearData() {
     samples.length = 0; // clear array
@@ -510,15 +549,21 @@ function clearData() {
     while (chartContainer.firstChild) chartContainer.removeChild(chartContainer.lastChild);
     chartData = null;
     chart = null;
-    ctx = output.getContext("2d");
-    ctx.clearRect(0, 0, output.width, output.height);
+    // ctx = output.getContext("2d");
+    // ctx.clearRect(0, 0, output.width, output.height);
     // video.pause();
     // video.currentTime = 0;
 }
 
 function setThreshold(event) {
-    threshold = event.target.value / 100;
-    controlThresholdPreview.textContent = threshold.toFixed(2);
+    if (event.target == controlThreshold) {
+        threshold = event.target.value / 100;
+        controlThresholdPreview.value = threshold.toFixed(2);
+    } else if (event.target == controlThresholdPreview) {
+        threshold = parseFloat(event.target.value);
+        controlThreshold.value = threshold * 100;
+    } else return;
+
     updatePrediction(5);
 }
 
@@ -566,10 +611,10 @@ function exportCsv() {
 
 function togglePlotWindow(event) {
     if (event.target.checked) {
-        controlWindow.disabled = false;
-        chartWindow = controlWindow.value;
+        controlPlotWindow.disabled = false;
+        chartWindow = controlPlotWindow.value;
     } else {
-        controlWindow.disabled = true;
+        controlPlotWindow.disabled = true;
         chartWindow = Infinity;
     }
 }
@@ -581,17 +626,20 @@ function resizePlotWindow(event) {
 
 controlClear.addEventListener('click', clearData);
 controlThreshold.addEventListener('input', setThreshold);
+controlThresholdPreview.addEventListener('input', setThreshold);
 controlPeriod.addEventListener('change', setPeriod);
 controlExportCsv.addEventListener('click', exportCsv);
-controlWindowEnable.addEventListener('change', togglePlotWindow);
-controlWindow.addEventListener('change', resizePlotWindow);
+controlPlotWindowEnable.addEventListener('change', togglePlotWindow);
+controlPlotWindow.addEventListener('change', resizePlotWindow);
 
 /***************
- * OUTPUTS
+ * CHART & TABLE
  **************/
 
-var chartWindow = Infinity;
-var chartContainer = document.getElementById('chart-container');
+const sampleCount = document.getElementById('sample-count');
+const chartContainer = document.getElementById('chart-container');
+
+var chartWindow = parseInt(controlPlotWindow.value);
 var chartOptions = null;
 var chartData = null;
 var chart = null;
@@ -606,6 +654,11 @@ google.charts.load('current', {
 // google.charts.setOnLoadCallback(initChart);
 
 function initChart() {
+    // Instantiate and draw our chart, passing in some options.
+    chart = new google.visualization.LineChart(chartContainer);
+}
+
+function initChartData() {
     // Create the data table.
     chartData = new google.visualization.DataTable();
     chartData.addColumn('number', 'timecode');
@@ -613,7 +666,12 @@ function initChart() {
     chartData.addColumn('number', 'blink');
     // chartData.addColumn('number', 'pupil-x');
     // chartData.addColumn('number', 'pupil-y');
+    for (var i = 0; i < nTriggers; ++i)
+        chartData.addColumn('number', 'trigger' + (i + 1));
 
+}
+
+function initChartOptions() {
     let series = {
         0: {
             targetAxisIndex: 0
@@ -623,12 +681,10 @@ function initChart() {
         }
     }
 
-    for (var i = 0; i < nTriggers; ++i) {
+    for (var i = 0; i < nTriggers; ++i)
         series[i + 2] = {
             targetAxisIndex: 1
         };
-        chartData.addColumn('number', 'trigger' + (i + 1));
-    }
 
     // Set chart options
     chartOptions = {
@@ -662,10 +718,6 @@ function initChart() {
             position: 'top'
         },
     };
-
-    // Instantiate and draw our chart, passing in some options.
-    chart = new google.visualization.LineChart(chartContainer);
-    chart.draw(chartData, chartOptions);
 }
 
 var samples = [];
@@ -676,21 +728,30 @@ function addSample(sample) {
 
     let flatSample = sample.slice(0, -1).concat(triggers);
     samples.push(flatSample);
+    sampleCount.textContent = "" + samples.length;
 
-    sampleRow = document.createElement('tr');
-    sampleRow.innerHTML = (
-        '<td>' + timestamp.toISOString() + '</td>' +
-        '<td>' + timecode.toFixed(3) + '</td>' +
-        '<td>' + pupilArea.toFixed(2) + '</td>' +
-        '<td>' + blinkProb.toFixed(1) + '</td>' +
-        '<td>' + pupilX.toFixed(1) + '</td>' +
-        '<td>' + pupilY.toFixed(1) + '</td>' +
-        triggers.map(t => '<td>' + t + '</td>').join(''));
+    if (controlAutoUpdateTable.checked) {
 
-    trace.appendChild(sampleRow);
-    traceContainer.scrollTop = traceContainer.scrollHeight;
+        let sampleRow = document.createElement('tr');
+        sampleRow.innerHTML = (
+            '<td>' + timestamp.toISOString() + '</td>' +
+            '<td>' + timecode.toFixed(3) + '</td>' +
+            '<td>' + pupilArea.toFixed(2) + '</td>' +
+            '<td>' + blinkProb.toFixed(1) + '</td>' +
+            '<td>' + pupilX.toFixed(1) + '</td>' +
+            '<td>' + pupilY.toFixed(1) + '</td>' +
+            triggers.map(t => '<td>' + t + '</td>').join(''));
 
-    if (!chart) initChart();
+        trace.appendChild(sampleRow);
+        traceContainer.scrollTop = traceContainer.scrollHeight;
+    }
+
+    if (!chart) {
+        initChart();
+        initChartData();
+        initChartOptions();
+    }
+
     let chartSample = [timecode, pupilArea, blinkProb].concat(triggers);
     chartData.addRow(chartSample);
 
@@ -698,9 +759,46 @@ function addSample(sample) {
     if (N > chartWindow)
         chartData.removeRows(0, N - chartWindow);
 
-    if (controlLivePlot.checked)
+    if (controlPlotAutoUpdate.checked)
         chart.draw(chartData, chartOptions);
 }
+
+function updateChart() {
+    if (!chart) initChart();
+
+    initChartData();
+    let chartSamples = samples.map(r => r.slice(1, 4).concat(r.slice(-nTriggers)));
+    chartData.addRows(chartSamples);
+
+    let N = chartData.getNumberOfRows();
+    if (N > chartWindow)
+        chartData.removeRows(0, N - chartWindow);
+
+    chart.draw(chartData, chartOptions);
+}
+
+function updateTable() {
+    trace.innerHTML = "";
+    samples.forEach(sample => {
+        let [timestamp, timecode, pupilArea, blinkProb, pupilX, pupilY] = sample.slice(0, -nTriggers);
+        let triggers = sample.slice(-nTriggers);
+        let sampleRow = document.createElement('tr');
+        sampleRow.innerHTML = (
+            '<td>' + timestamp.toISOString() + '</td>' +
+            '<td>' + timecode.toFixed(3) + '</td>' +
+            '<td>' + pupilArea.toFixed(2) + '</td>' +
+            '<td>' + blinkProb.toFixed(1) + '</td>' +
+            '<td>' + pupilX.toFixed(1) + '</td>' +
+            '<td>' + pupilY.toFixed(1) + '</td>' +
+            triggers.map(t => '<td>' + t + '</td>').join(''));
+
+        trace.appendChild(sampleRow);
+    });
+    traceContainer.scrollTop = traceContainer.scrollHeight;
+}
+
+controlPlotUpdate.addEventListener('click', updateChart);
+controlTableUpdate.addEventListener('click', updateTable);
 
 /*****
  * FPS

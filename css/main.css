@@ -10,6 +10,7 @@ body {
 }
 
 #loading {
+    display: inherit;
     position: absolute;
     z-index: 1000;
     width: 100%;
@@ -62,11 +63,12 @@ fieldset legend {
 }
 
 input[type=number] {
+    text-align: right;
     width: 60px;
 }
 
 #input-params fieldset,
-#video-params fieldset,
+#video-params,
 #controls fieldset {
     flex-grow: 1;
 }
@@ -79,11 +81,40 @@ input[type=number] {
     display: inline-block;
 }
 
-#capture-params input,
-#roi-params input {
-    text-align: right;
+#capture-params input {
     margin-left: 5px;
     margin-right: 50px;
+}
+
+#pre-post-params {
+    display: flex;
+    flex-flow: column nowrap;
+}
+
+#roi-params,
+#filter-params {
+    display: flex;
+    flex-flow: column nowrap;
+}
+
+#roi-params label,
+#filter-params label {
+    display: inline-flex;
+    justify-content: space-between;
+}
+
+#roi-params input,
+#filter-params input[type=number] {
+    margin: 5px 0 5px 10px;
+}
+
+#filter-params input[type=checkbox] {
+    margin: auto 0;
+    width: 65px;
+}
+
+#control-thr {
+    width: 100%;
 }
 
 #roi {
@@ -154,14 +185,9 @@ input[type=number] {
     left: calc(100% + 5px);
 }
 
-
 video {
     display: inline-block;
     z-index: 5;
-}
-
-#video-params fieldset {
-    padding-bottom: 20px;
 }
 
 #controls fieldset > *:not(legend) {
@@ -186,26 +212,47 @@ video {
     width: 100%;
     text-align: left;
     padding-left: 22px;
+    display: inline-flex;
+    justify-content: space-between;
+    flex-flow: row nowrap;
+}
+
+.out .flex-legend {
+    width: 100%;
+    display: inline-flex;
+    justify-content: space-between;
+    flex-flow: row nowrap;
+}
+
+.out legend label {
+    margin-left: 30px;
+    text-transform: none;
+}
+
+.out legend span {
+    font-size: 0.8em;
+    flex-grow: 1;
+    text-align: right;
 }
 
 #out-graph {
     flex-grow: 1;
 }
 
-#out-map {
-    width: 100%;
-    max-width: 256px;
-    text-align: center;
+#sample-count:before {
+    content: '(';
 }
 
-#out-map canvas {
-    height: 100%;
-    display: inline-block;
+#sample-count:after {
+    content: ')';
 }
 
-#out-data {
-    /* min-width: 500px; */
+#sample-count {
+    margin-left: 5px;
+    font-size: 0.8em;
+    vertical-align: baseline;
 }
+
 
 #trace {
     font-family: monospace;

@@ -21,18 +21,43 @@
             <label for="webcamButton">or: </label><input type="button" id="webcamButton" value="Enable Webcam">
             <span id="input-error"></span>
         </fieldset>
-
-        <fieldset id="roi-params">
-            <legend>ROI</legend>
-            <label for="roi-left">X:</label><input type="number" min="0" id="roi-left">
-            <label for="roi-top">Y:</label><input type="number" min="0" id="roi-top">
-            <label for="roi-size">Size:</label><input type="number" min="0" id="roi-size">
+        <fieldset id="model-params">
+            <legend>Model</legend>
+            <select id="modelSelector">
+                <option>meye-segmentation_i128_s4_c1_f16_g1_a-relu-no-subj</option>
+                <option>meye-segmentation_i128_s4_c1_f16_g1_a-relu</option>
+            </select>
         </fieldset>
     </section>
 
-    <section id="video-params">
-        <fieldset>
-            <legend>Preview</legend>
+    <section>
+        <aside id="pre-post-params">
+            <fieldset id="roi-params">
+                <legend>ROI</legend>
+                <label for="roi-left" title="X-coordinate of top left corner of the ROI">X:<input type="number" min="0" id="roi-left"></label>
+                <label for="roi-top" title="Y-coordinate of top left corner of the ROI">Y:<input type="number" min="0" id="roi-top"></label>
+                <label for="roi-size" title="Length of the side of the squared ROI">Size:<input type="number" min="0" id="roi-size"></label>
+            </fieldset>
+
+            <fieldset id="filter-params">
+                <legend>Prediction</legend>
+                <label for="control-period" title="Time to wait between predictions (0 = fastest possible)">Period (ms): <input type="number" min="0" value=0 id="control-period"></label>
+                <label for="control-thr-preview" title="Pupil probability map threshold">Threshold: <input type="number" min="0" max="1" step="0.01" value="0.50" id="control-thr-preview"></label>
+                <label><input type="range" min="0" max="100" id="control-thr"></label>
+                <label for="control-morphology">Morphology: <input type="checkbox" id="control-morphology" checked></label>
+            </fieldset>
+
+            <fieldset>
+                <legend>Triggers</legend>
+                <input type="button" value="Trigger 1 (T)" id="control-trigger-1" accesskey="t" data-trigger-id="0">
+                <input type="button" value="Trigger 2 (Y)" id="control-trigger-2" accesskey="y" data-trigger-id="1">
+            </fieldset>
+        </aside>
+        <fieldset id="video-params">
+            <legend>
+                Preview
+                <label><meter id="fps-meter" min=0 value=24 max=30></meter> FPS: <span id="fps-preview"></span></label>
+            </legend>
             <div id="preview">
                 <div draggable="true" id="roi">
                     <canvas id="output"></canvas>
@@ -44,43 +69,35 @@
         </fieldset>
     </section>
 
-    <section id="controls">
-        <fieldset>
-            <legend>Controls</legend>
-            <input type="button" value="Clear Data" id="control-clear" accesskey="c">
-            <input type="button" value="Export CSV" id="control-export-csv" accesskey="e">
-
-            <label>Threshold: <input type="range" min="0" max="100" id="control-thr"><span id="control-thr-preview">0.50</span></label>
-            <label>Prediction Period: <input type="number" min="0" value=0 id="control-period"> ms</label>
-            <label>Live Plot: <input type="checkbox" checked="true" id="control-liveplot"></label>
-            <label><input type="checkbox" id="control-window-enable"> Show only: <input type="number" min="1" value=100 id="control-window" disabled> samples</label>
-        </fieldset>
-
-        <fieldset>
-            <legend>Triggers</legend>
-            <input type="button" value="Trigger 1 (T)" id="control-trigger-1" accesskey="t" data-trigger-id="0">
-            <input type="button" value="Trigger 2 (Y)" id="control-trigger-2" accesskey="y" data-trigger-id="1">
-        </fieldset>
-
-        <fieldset>
-            <legend>Info</legend>
-            <label>FPS: <span id="fps-preview"></span> <meter id="fps-meter" min=0 value=24 max=30></meter></label>
-        </fieldset>
-    </section>
-
     <section id="outputs">
-        <fieldset id="out-map" class="out">
-            <legend>Output</legend>
-            <!-- <canvas id="output"></canvas> -->
-        </fieldset>
-
         <fieldset id="out-graph" class="out">
-            <legend>Trace</legend>
+            <legend>
+                <!-- thanks FF.. -->
+                <div class="flex-legend">
+                    Plot
+                    <span>
+                        <label><input type="checkbox" checked="true" id="control-plot-autoupdate"> Auto-Update</label>
+                        <label><input type="checkbox" id="control-plot-window-enable" checked> Show only <input type="number" min="1" value=100 id="control-plot-window"> last samples</label>
+                        <label><input type="button" id="control-plot-update" value="Update Plot"></label>
+                    </span>
+                </div>
+            </legend>
             <div id="chart-container"></div>
         </fieldset>
 
         <fieldset id="out-data" class="out">
-            <legend>Data</legend>
+            <legend>
+                <div class="flex-legend">
+                    Data
+                    <output id="sample-count">0</output>
+                    <span>
+                        <label><input type="checkbox" checked="true" id="control-table-autoupdate"> Auto-Update</label>
+                        <input type="button" value="Update Table" id="control-table-update">
+                        <input type="button" value="Clear Data" id="control-clear" accesskey="c">
+                        <input type="button" value="Export CSV" id="control-export-csv" accesskey="e">
+                    </span>
+                </div>
+            </legend>
             <div id="sticky-header">
                 <table id="trace">
                     <thead>
