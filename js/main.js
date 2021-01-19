@@ -1,6 +1,6 @@
 console.log('Loaded TensorFlow.js - version: ' + tf.version.tfjs);
 
-const enableWebcamButton = document.getElementById('webcamButton');
+const webcamButton = document.getElementById('webcamButton');
 const fileInput = document.getElementById('file-input');
 const inputError = document.getElementById('input-error');
 const video = document.getElementById('webcam');
@@ -22,6 +22,7 @@ fileInput.addEventListener('change', function (event) {
         return false;
     }
 
+    clearPreview();
     var URL = window.URL || window.webkitURL;
     var fileUrl = URL.createObjectURL(file);
     video.srcObject = null;
@@ -38,27 +39,39 @@ function getUserMediaSupported() {
 // wants to activate it to call enableCam function which we will 
 // define in the next step.
 if (getUserMediaSupported()) {
-    enableWebcamButton.addEventListener('click', enableCam);
+    webcamButton.addEventListener('click', toggleCam);
 } else {
     console.warn('getUserMedia() is not supported by your browser');
 }
 
+var videoStream = null;
 // Enable the live webcam view and start classification.
-function enableCam(event) {
+function toggleCam(event) {
 
-    // Only continue if the model has finished loading.
-    if (!model) {
+    if (videoStream) { // cam is active
+        video.pause();
+        videoStream.getTracks().forEach(t => {
+            t.stop();
+        });
+        webcamButton.value = "Enable Webcam";
+        videoStream = null;
         return;
     }
 
     // getUsermedia parameters to force video but not audio.
     const constraints = {
-        video: true
+        video: true,
+        audio: false
     };
 
     // Activate the webcam stream.
     navigator.mediaDevices.getUserMedia(constraints).then(function (stream) {
+        clearPreview();
+        videoStream = stream;
         video.srcObject = stream;
+        video.play();
+
+        webcamButton.value = "Disable Webcam";
     });
 }
 
