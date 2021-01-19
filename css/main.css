@@ -108,7 +108,8 @@ input[type=number] {
     margin: 5px 0 5px 10px;
 }
 
-#filter-params input[type=checkbox] {
+#filter-params input[type=checkbox],
+#option-params input[type=checkbox] {
     margin: auto 0;
     width: 65px;
 }

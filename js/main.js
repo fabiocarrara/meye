@@ -46,8 +46,6 @@ if (getUserMediaSupported()) {
 // Enable the live webcam view and start classification.
 function enableCam(event) {
 
-    video.removeEventListener('loadeddata', predictLoop);
-
     // Only continue if the model has finished loading.
     if (!model) {
         return;
@@ -61,7 +59,6 @@ function enableCam(event) {
     // Activate the webcam stream.
     navigator.mediaDevices.getUserMedia(constraints).then(function (stream) {
         video.srcObject = stream;
-        video.addEventListener('loadeddata', predictLoop);
     });
 }
 
@@ -521,7 +518,14 @@ function predictLoop() {
     });
 }
 
-video.addEventListener('play', predictLoop);
+function startPredictionLoop() {
+    if (controlClearOnResume.checked)
+        clearData();
+
+    predictLoop();
+}
+
+video.addEventListener('play', startPredictionLoop);
 video.addEventListener('seeked', predictOnce);
 
 /***************
@@ -533,6 +537,8 @@ const controlThreshold = document.getElementById('control-thr');
 const controlThresholdPreview = document.getElementById('control-thr-preview');
 const controlMorphology = document.getElementById('control-morphology');
 
+const controlClearOnResume = document.getElementById('control-clear-on-resume');
+
 const controlPlotAutoUpdate = document.getElementById('control-plot-autoupdate');
 const controlPlotWindow = document.getElementById('control-plot-window');
 const controlPlotWindowEnable = document.getElementById('control-plot-window-enable');
@@ -543,14 +549,17 @@ const controlTableUpdate = document.getElementById('control-table-update');
 const controlExportCsv = document.getElementById('control-export-csv');
 const controlClear = document.getElementById('control-clear');
 
+function clearPreview() {
+    ctx = output.getContext("2d");
+    ctx.clearRect(0, 0, output.width, output.height);
+}
+
 function clearData() {
     samples.length = 0; // clear array
     while (trace.firstChild) trace.removeChild(trace.lastChild);
     while (chartContainer.firstChild) chartContainer.removeChild(chartContainer.lastChild);
     chartData = null;
     chart = null;
-    // ctx = output.getContext("2d");
-    // ctx.clearRect(0, 0, output.width, output.height);
     // video.pause();
     // video.currentTime = 0;
 }
