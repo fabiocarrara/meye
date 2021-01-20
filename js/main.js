@@ -84,6 +84,9 @@ const rx = document.getElementById('roi-left');
 const ry = document.getElementById('roi-top');
 const rs = document.getElementById('roi-size');
 
+const roiDragger = document.getElementById('roi-dragger');
+const roiResizer = document.getElementById('roi-resizer');
+
 // const rw = document.getElementById('roi-width');
 // const rh = document.getElementById('roi-height');
 
@@ -128,7 +131,7 @@ function resetRoi() {
     updateRoi();
 }
 
-video.addEventListener('loadeddata', resetRoi);
+video.addEventListener('loadedmetadata', resetRoi);
 video.addEventListener('loadeddata', () => {
     video.muted = true;
     video.volume = 0;
@@ -138,7 +141,7 @@ var dragOffset = undefined;
 
 function dragstart(event) {
     event.dataTransfer.setData('application/node type', this);
-    let style = window.getComputedStyle(event.target, null);
+    let style = window.getComputedStyle(roi, null);
 
     let offsetX = (parseInt(style.getPropertyValue("left")) - event.clientX);
     let offsetY = (parseInt(style.getPropertyValue("top")) - event.clientY);
@@ -178,33 +181,65 @@ function dragover(event) {
     }
 }
 
+var resizeSize = undefined;
+
+function resizestart(event) {
+    event.dataTransfer.setData('application/node type', this);
+    let style = window.getComputedStyle(roi, null);
+
+    let offsetX = (parseInt(style.getPropertyValue("width")) - event.clientX);
+    let offsetY = (parseInt(style.getPropertyValue("height")) - event.clientY);
+
+    resizeSize = [offsetX, offsetY];
+
+    event.dataTransfer.setDragImage(new Image(), 0, 0);
+    event.dataTransfer.effectAllowed = "move";
+}
+
+
+function resizeover(event) {
+    if (resizeSize) {
+        let [offsetX, offsetY] = resizeSize;
+
+        let width = video.videoWidth;
+        let height = video.videoHeight;
+        let maxSize = Math.min(width - rx.value, height - ry.value);
+
+        let newW = Math.floor(event.clientX + parseInt(offsetX));
+        let newH = Math.floor(event.clientY + parseInt(offsetY));
+
+        let newSize = Math.min(Math.min(newW, newH), maxSize);
+
+        roi.style.width = newSize + 'px';
+        roi.style.height = newSize + 'px';
+
+        rs.value = newSize;
+
+        event.preventDefault();
+        return false;
+    }
+}
+
 function drop(event) {
     dragOffset = undefined;
+    resizeSize = undefined;
     event.preventDefault();
     return false;
 }
 
-let observer = new MutationObserver(function (mutations) {
-    let width = video.videoWidth;
-    let height = video.videoHeight;
-    let maxSize = Math.min(width - rx.value, height - ry.value);
-    let elem = mutations[0].target;
-
-    let newSize = Math.min(elem.clientWidth, elem.clientHeight);
-    newSize = Math.min(newSize, maxSize);
-
-    elem.style.width = newSize + 'px';
-    elem.style.height = newSize + 'px';
-    rs.value = newSize;
-
+let observer = new MutationObserver(() => {
     updatePrediction(30);
 }).observe(roi, {
     attributes: true
 });
 
-roi.addEventListener('dragstart', dragstart);
+roiDragger.addEventListener('dragstart', dragstart);
 document.body.addEventListener('dragover', dragover);
-document.body.addEventListener('drop', drop);
+
+roiResizer.addEventListener('dragstart', resizestart);
+document.body.addEventListener('dragover', resizeover);
+
+document.body.addEventListener('drop', drop); // in common
 
 /****************
  * PUPIL LOCATOR

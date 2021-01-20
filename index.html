@@ -64,7 +64,9 @@
                 <label><meter id="fps-meter" min=0 value=24 max=30></meter> FPS: <span id="fps-preview"></span></label>
             </legend>
             <div id="preview">
-                <div draggable="true" id="roi">
+                <div id="roi">
+                    <div draggable="true" id="roi-dragger"></div>
+                    <div draggable="true" id="roi-resizer"></div>
                     <canvas id="output"></canvas>
                 </div>
                 <div id="pupil-x"><span>x=13.0</span></div>
