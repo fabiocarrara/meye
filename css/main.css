@@ -91,27 +91,28 @@ input[type=number] {
     flex-flow: column nowrap;
 }
 
-#roi-params,
-#filter-params {
+#pre-post-params fieldset {
     display: flex;
     flex-flow: column nowrap;
 }
 
-#roi-params label,
-#filter-params label {
+#pre-post-params label {
     display: inline-flex;
     justify-content: space-between;
 }
 
-#roi-params input,
-#filter-params input[type=number] {
+#pre-post-params input[type=number] {
     margin: 5px 0 5px 10px;
 }
 
-#filter-params input[type=checkbox],
-#option-params input[type=checkbox] {
+#pre-post-params input[type=checkbox] {
     margin: auto 0;
     width: 65px;
+}
+
+#triggers-params {
+    flex-direction: row !important;
+    justify-content: space-between;
 }
 
 #control-thr {
@@ -131,7 +132,6 @@ input[type=number] {
     overflow: hidden;
     pointer-events: none;
 }
-
 
 #roi-dragger,
 #roi-resizer {

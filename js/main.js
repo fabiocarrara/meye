@@ -99,7 +99,7 @@ function updatePrediction(delay) {
         updatePredictionTimeout = setTimeout(predictOnce, delay);
 }
 
-function updateRoi() {
+function setRoi() {
     let left = parseInt(rx.value);
     let top = parseInt(ry.value);
     let size = parseInt(rs.value);
@@ -111,7 +111,10 @@ function updateRoi() {
     roi.style.top = (top - border) + 'px';
     roi.style.width = size + 'px';
     roi.style.height = size + 'px';
+}
 
+function updateRoi() {
+    setRoi();
     updatePrediction();
 }
 
@@ -596,6 +599,29 @@ function predictLoop() {
 
     predictOnce().then(outs => {
         let [timestamp, timecode, pupilArea, blinkProb, pupilX, pupilY] = outs;
+
+        // follow eye
+        if (true && pupilX > 0) {
+            let curX = rx.value;
+            let curY = ry.value;
+
+            let newX = Math.round(pupilX - rs.value / 2);
+            let newY = Math.round(pupilY - rs.value / 2);
+
+            newX = Math.round((1 - blinkProb) * newX + blinkProb * curX);
+            newY = Math.round((1 - blinkProb) * newY + blinkProb * curY);
+
+            let maxX = video.videoWidth - rs.value;
+            let maxY = video.videoHeight - rs.value;
+
+            newX = Math.min(Math.max(0, newX), maxX);
+            newY = Math.min(Math.max(0, newY), maxY);
+
+            rx.value = newX;
+            ry.value = newY;
+
+            setRoi();
+        }
 
         // pause prediction when video is paused
         if (!video.paused)
