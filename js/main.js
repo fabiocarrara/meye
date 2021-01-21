@@ -407,66 +407,66 @@ function predictFrame() {
 }
 
 function keepLargestComponent(array) {
-    let nRows = array.length;
-    let nCols = array[0].length;
+
+    let h = array.length;
+    let w = array[0].length;
 
     // invert binary map
-    for (let i = 0; i < nRows; ++i)
-        for (let j = 0; j < nCols; ++j)
+    for (let i = 0; i < h; ++i)
+        for (let j = 0; j < w; ++j)
             array[i][j] = -array[i][j];
 
-    let currentLabel = 1;
-
-    function test(array, i, j, label) {
-        if (array[i] && array[i][j] === -1) {
-            array[i][j] = label;
-            return (1 +
-                test(array, i - 1, j, label) +
-                test(array, i + 1, j, label) +
-                test(array, i, j - 1, label) +
-                test(array, i, j + 1, label));
-        }
-        return 0;
-    }
-
-    // let counts = [0];
-    // let total = 0;
+    // label and measure connected components
+    // using iterative depth first search
+    let label = 1;
     let maxCount = 0;
     let maxLabel = 0;
 
-    for (let i = 0; i < nRows; ++i) {
-        for (let j = 0; j < nCols; ++j) {
-            let count = test(array, i, j, currentLabel);
-            if (count > 0) {
-                if (count > maxCount) {
-                    maxCount = count;
-                    maxLabel = currentLabel;
-                }
+    for (let i = 0; i < h; ++i) {
+        for (let j = 0; j < w; ++j) {
+            if (array[i][j] >= 0) continue;
 
-                // total += count;
-                // counts.push(count);
-                currentLabel++;
+            let stack = [(i * h + j)];
+            let pool = new Set();
+            let count = 0;
+
+            while (stack.length) {
+                let node = stack.pop();
+                if (pool.has(node)) continue;
+
+                pool.add(node);
+                let c = node % h;
+                let r = Math.floor(node / h);
+                if (array[r][c] === -1) {
+                    array[r][c] = label;
+                    if (r > 0 + 1) stack.push((r - 1) * h + c);
+                    if (r < h - 1) stack.push((r + 1) * h + c);
+                    if (c > 0 + 1) stack.push(r * h + c - 1);
+                    if (c < w - 1) stack.push(r * h + c + 1);
+                    ++count;
+                }
             }
+
+            if (count > maxCount) {
+                maxCount = count;
+                maxLabel = label;
+            }
+
+            ++label;
         }
     }
 
-    // counts[0] = nRows * nCols - total;
-
-    // keep only largest label
-    let newArea = 0;
-    for (let i = 0; i < nRows; ++i) {
-        for (let j = 0; j < nCols; ++j) {
+    // keeping largest component
+    for (let i = 0; i < h; ++i) {
+        for (let j = 0; j < w; ++j) {
             // array[i][j] = (array[i][j] == maxLabel) ? 1 : 0;
             if (array[i][j] > 0)
-                if (array[i][j] == maxLabel) {
-                    array[i][j] = 1;
-                    ++newArea;
-                } else
-                    array[i][j] = 0.3; // for debug purposes
+                array[i][j] = (array[i][j] == maxLabel) ? 1 : 0.3; // for debug purposes
         }
     }
 
-    return newArea;
+    // returning area of the largest component
+    return maxCount;
 }
 
 function findCentroid(array) {
