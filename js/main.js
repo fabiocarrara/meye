@@ -667,6 +667,7 @@ const controlClearOnResume = document.getElementById('control-clear-on-resume');
 const controlPlotAutoUpdate = document.getElementById('control-plot-autoupdate');
 const controlPlotWindow = document.getElementById('control-plot-window');
 const controlPlotWindowEnable = document.getElementById('control-plot-window-enable');
+const controlPlotSmooth = document.getElementById('control-plot-smooth');
 const controlPlotUpdate = document.getElementById('control-plot-update');
 
 const controlAutoUpdateTable = document.getElementById('control-table-autoupdate');
@@ -758,6 +759,7 @@ function resizePlotWindow(event) {
         chartWindow = event.target.value;
 }
 
+
 controlClear.addEventListener('click', clearData);
 controlThreshold.addEventListener('input', setThreshold);
 controlThresholdPreview.addEventListener('input', setThreshold);
@@ -765,6 +767,7 @@ controlPeriod.addEventListener('change', setPeriod);
 controlExportCsv.addEventListener('click', exportCsv);
 controlPlotWindowEnable.addEventListener('change', togglePlotWindow);
 controlPlotWindow.addEventListener('change', resizePlotWindow);
+controlPlotSmooth.addEventListener('change', initChartOptions);
 
 /***************
  * CHART & TABLE
@@ -822,10 +825,13 @@ function initChartOptions() {
 
     // Set chart options
     chartOptions = {
-        // curveType: 'function',
-        'chartArea': {
-            'width': '85%',
-            'height': '80%'
+        curveType: (controlPlotSmooth.checked) ? 'function' : 'none',
+        chartArea: {
+            width: '85%',
+            height: '80%'
+        },
+        explorer: {
+            axis: 'horizontal'
         },
         series: series,
         vAxes: {
@@ -833,19 +839,27 @@ function initChartOptions() {
             0: {
                 title: 'Pupil Area (px²)',
                 minValue: 0,
-                textPosition: 'in'
+                textPosition: 'in',
+                viewWindow: {
+                    min: 0
+                }
             },
             1: {
                 title: 'Blink (%)',
                 format: 'percent',
                 minValue: 0,
                 maxValue: 1,
-                textPosition: 'in'
+                textPosition: 'in',
+                viewWindow: {
+                    min: 0,
+                    max: 1
+                }
             }
         },
         hAxis: {
             title: 'time (s)',
-            textPosition: 'in'
+            textPosition: 'in',
+            viewWindowMode: 'maximized'
         },
         height: 225,
         legend: {
@@ -901,6 +915,7 @@ function updateChart() {
     if (!chart) initChart();
 
     initChartData();
+    initChartOptions();
     let chartSamples = samples.map(r => r.slice(1, 4).concat(r.slice(-nTriggers)));
     chartData.addRows(chartSamples);
 
