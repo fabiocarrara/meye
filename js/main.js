@@ -469,6 +469,55 @@ function keepLargestComponent(array) {
     return maxCount;
 }
 
+function findZero(array) {
+    let h = array.length;
+    let w = array[0].length;
+    for (let i = 0; i < h; ++i)
+        for (let j = 0; j < w; ++j)
+            if (array[i][j] < 0.5)
+                return [i, j];
+    return null;
+}
+
+function floodFill(array) {
+    let h = array.length;
+    let w = array[0].length;
+    let [r0, c0] = findZero(array);
+    let stack = [r0 * h + c0];
+
+    while (stack.length) {
+        let node = stack.pop();
+        let [r, c] = [Math.floor(node / h), node % h];
+        if (array[r][c] != 1) {
+            array[r][c] = 1;
+            if (r > 0 + 1) stack.push((r - 1) * h + c);
+            if (r < h - 1) stack.push((r + 1) * h + c);
+            if (c > 0 + 1) stack.push(r * h + c - 1);
+            if (c < w - 1) stack.push(r * h + c + 1);
+        }
+    }
+}
+
+function fillHoles(array) {
+    let h = array.length;
+    let w = array[0].length;
+    let filled = array.map(r => r.map(c => c));
+    floodFill(filled);
+
+    let filledCount = 0;
+    for (let i = 0; i < h; ++i) {
+        for (let j = 0; j < w; ++j) {
+            if (filled[i][j] == 0) {
+                array[i][j] = 0.7; // debug
+                ++filledCount;
+            }
+        }
+    }
+
+    return filledCount;
+}
+
+
 function findCentroid(array) {
     let nRows = array.length;
     let nCols = array[0].length;
@@ -478,7 +527,7 @@ function findCentroid(array) {
         m00 = 0;
     for (let i = 0; i < nRows; ++i) {
         for (let j = 0; j < nCols; ++j) {
-            let v = (array[i][j] == 1) ? 1 : 0;
+            let v = (array[i][j] > 0.5) ? 1 : 0;
             m01 += j * v;
             m10 += i * v;
             m00 += v;
@@ -504,8 +553,10 @@ function predictOnce() {
 
         if (pupilArea > 0) {
 
-            if (controlMorphology.checked)
+            if (controlMorphology.checked) {
                 pupilArea = keepLargestComponent(pupil);
+                pupilArea += fillHoles(pupil);
+            }
 
             [pupilX, pupilY] = findCentroid(pupil);
             let x = parseInt(rx.value);
@@ -521,8 +572,8 @@ function predictOnce() {
         // for Array, toPixel wants [0, 255] values
         for (let i = 0; i < pupil.length; ++i)
             for (let j = 0; j < pupil[0].length; ++j)
-                if (pupil[i][j] == 1)
-                    pupil[i][j] = [255, 0, 0]; // red
+                if (pupil[i][j] > 0.5)
+                    pupil[i][j] = [255 * pupil[i][j], 0, 0]; // red
                 else {
                     let v = Math.round(pupil[i][j] * 255);
                     pupil[i][j] = [v, v, v]; // gray
