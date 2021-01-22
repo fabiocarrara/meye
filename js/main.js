@@ -168,8 +168,8 @@ function dragover(event) {
         let newX = Math.floor(event.clientX + parseInt(offsetX));
         let newY = Math.floor(event.clientY + parseInt(offsetY));
 
-        let maxX = video.videoWidth - size + border;
-        let maxY = video.videoHeight - size + border;
+        let maxX = video.videoWidth - size - border;
+        let maxY = video.videoHeight - size - border;
 
         newX = Math.max(-border, Math.min(newX, maxX));
         newY = Math.max(-border, Math.min(newY, maxY));
