@@ -83,6 +83,7 @@ const roi = document.getElementById('roi');
 const rx = document.getElementById('roi-left');
 const ry = document.getElementById('roi-top');
 const rs = document.getElementById('roi-size');
+const rt = document.getElementById('roi-track');
 
 const roiDragger = document.getElementById('roi-dragger');
 const roiResizer = document.getElementById('roi-resizer');
@@ -601,7 +602,7 @@ function predictLoop() {
         let [timestamp, timecode, pupilArea, blinkProb, pupilX, pupilY] = outs;
 
         // follow eye
-        if (true && pupilX > 0) {
+        if (rt.checked && pupilX > 0) {
             let curX = rx.value;
             let curY = ry.value;
 
