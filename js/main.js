@@ -8,6 +8,8 @@ const output = document.getElementById('output');
 const traceContainer = document.getElementById('sticky-header');
 const trace = document.getElementById('trace-data');
 
+const demoButtons = document.querySelectorAll('.demo-button');
+
 /******************
  * INPUTS
  *****************/
@@ -22,6 +24,7 @@ fileInput.addEventListener('change', function (event) {
         return false;
     }
 
+    hideRoi();
     clearPreview();
     var URL = window.URL || window.webkitURL;
     var fileUrl = URL.createObjectURL(file);
@@ -75,6 +78,55 @@ function toggleCam(event) {
     });
 }
 
+function loadDemo(event) {
+    video.pause();
+    hideRoi();
+
+    let demoData = event.target.dataset;
+
+    video.removeEventListener('loadedmetadata', resetRoi);
+    video.addEventListener('loadedmetadata', event => {
+        // reactivate handler after the demo video has loaded
+        video.addEventListener('loadedmetadata', resetRoi);
+        return true;
+    }, {
+        once: true
+    });
+
+    video.addEventListener('canplay', event => {
+        setRoi();
+        showRoi();
+        return true;
+    }, {
+        once: true
+    });
+
+    video.src = demoData.src;
+    clearData();
+
+    rx.value = parseInt(demoData.rx);
+    ry.value = parseInt(demoData.ry);
+    rs.value = parseInt(demoData.rs);
+    rt.checked = demoData.rt;
+
+    controlPeriod.value = parseInt(demoData.period);
+    controlThresholdPreview.value = parseFloat(demoData.thr);
+    controlMorphology.checked = demoData.morph;
+    controlPlotAutoUpdate.checked = "1";
+    controlTableAutoUpdate.checked = "1";
+
+    controlPeriod.dispatchEvent(new Event('change'));
+    controlThresholdPreview.dispatchEvent(new Event('input'));
+    controlMorphology.dispatchEvent(new Event('change'));
+    controlPlotAutoUpdate.dispatchEvent(new Event('change'));
+    controlTableAutoUpdate.dispatchEvent(new Event('change'));
+}
+
+demoButtons.forEach(element => {
+    element.addEventListener('click', loadDemo);
+});
+
+
 /********************
  * ROI
  *******************/
@@ -88,8 +140,21 @@ const rt = document.getElementById('roi-track');
 const roiDragger = document.getElementById('roi-dragger');
 const roiResizer = document.getElementById('roi-resizer');
 
-// const rw = document.getElementById('roi-width');
-// const rh = document.getElementById('roi-height');
+function hideRoi() {
+    roi.classList.add('hide');
+    pupilXLocator.classList.add('hide');
+    pupilYLocator.classList.add('hide');
+    pupilXLabel.classList.add('hide');
+    pupilYLabel.classList.add('hide');
+}
+
+function showRoi() {
+    roi.classList.remove('hide');
+    pupilXLocator.classList.remove('hide');
+    pupilYLocator.classList.remove('hide');
+    pupilXLabel.classList.remove('hide');
+    pupilYLabel.classList.remove('hide');
+}
 
 var updatePredictionTimeout;
 
@@ -135,11 +200,15 @@ function resetRoi() {
     updateRoi();
 }
 
+video.addEventListener('loadedmetadata', showRoi);
 video.addEventListener('loadedmetadata', resetRoi);
 video.addEventListener('loadeddata', () => {
     video.muted = true;
     video.volume = 0;
 })
+video.addEventListener('canplaythrough', () => {
+    updatePrediction();
+});
 
 var dragOffset = undefined;
 
@@ -351,19 +420,21 @@ function loadModel() {
     loadingOverlay.style.display = 'inherit';
     let modelUrl = 'models/' + modelSelect.value + '/model.json';
 
-    tf.loadGraphModel(modelUrl).then(function (loadedModel) {
+    return tf.loadGraphModel(modelUrl).then(function (loadedModel) {
         model = loadedModel;
         tf.tidy(() => {
             model.predict(tf.zeros([1, 128, 128, 1]))[0].data().then(() => {
                 loadingOverlay.style.display = 'none';
-                predictOnce();
             });
         });
     });
 }
 
 modelSelect.addEventListener('change', loadModel);
-loadModel();
+loadModel().then(() => {
+    // start demo 1
+    demoButtons[0].dispatchEvent(new Event('click'));
+});
 
 var period = 0;
 var timeoutHandler = null;
@@ -671,7 +742,7 @@ const controlPlotWindowEnable = document.getElementById('control-plot-window-ena
 const controlPlotSmooth = document.getElementById('control-plot-smooth');
 const controlPlotUpdate = document.getElementById('control-plot-update');
 
-const controlAutoUpdateTable = document.getElementById('control-table-autoupdate');
+const controlTableAutoUpdate = document.getElementById('control-table-autoupdate');
 const controlTableUpdate = document.getElementById('control-table-update');
 const controlExportCsv = document.getElementById('control-export-csv');
 const controlClear = document.getElementById('control-clear');
@@ -879,7 +950,7 @@ function addSample(sample) {
     samples.push(flatSample);
     sampleCount.textContent = "" + samples.length;
 
-    if (controlAutoUpdateTable.checked) {
+    if (controlTableAutoUpdate.checked) {
 
         let sampleRow = document.createElement('tr');
         sampleRow.innerHTML = (

@@ -15,6 +15,12 @@
     <h1>Pupillometry</h1>
 
     <section id="input-params">
+        <fieldset id="demo-params">
+            <legend>Demos</legend>
+            <input type="button" value="Human" class="demo-button" data-src="demo/h_f.mp4" data-rx="140" data-ry="60" data-rs="342" data-rt="1" data-period="0" data-thr="0.5" data-morph="1">
+            <input type="button" value="Mouse" class="demo-button" data-src="demo/hf_mouse.mp4" data-rx="80" data-ry="80" data-rs="90" data-rt="1" data-period="0" data-thr="0.5" data-morph="1">
+            <input type="button" value="2P Mouse" class="demo-button" data-src="demo/2p_mouse.mp4" data-rx="100" data-ry="100" data-rs="90" data-rt="1" data-period="0" data-thr="0.5" data-morph="1">
+        </fieldset>
         <fieldset id="capture-params">
             <legend>Input</legend>
             <label for="file-input">Video File:</label><input type="file" accept="video/*" id="file-input">
@@ -72,7 +78,7 @@
                 </div>
                 <div id="pupil-x"><span>x=13.0</span></div>
                 <div id="pupil-y"><span>y=24.1</span></div>
-                <video id="webcam" controls="1" src="2p_gNex6.mp4"></video>
+                <video id="webcam" controls="1"></video>
             </div>
         </fieldset>
     </section>

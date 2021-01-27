@@ -67,23 +67,23 @@ input[type=number] {
     width: 60px;
 }
 
-#input-params fieldset,
+#capture-params,
+#model-params,
 #video-params,
 #controls fieldset {
-    flex-grow: 1;
-}
-
-#preview {
-    padding: 0;
-    border: 0;
-    margin: 0;
-    position: relative;
-    display: inline-block;
+    flex-grow: 2;
 }
 
 #capture-params input {
     margin-left: 5px;
     margin-right: 50px;
+}
+
+#demo-params {
+    width: 200px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 
 #pre-post-params {
@@ -94,6 +94,7 @@ input[type=number] {
 #pre-post-params fieldset {
     display: flex;
     flex-flow: column nowrap;
+    width: 200px;
 }
 
 #pre-post-params label {
@@ -117,6 +118,14 @@ input[type=number] {
 
 #control-thr {
     width: 100%;
+}
+
+#preview {
+    padding: 0;
+    border: 0;
+    margin: 0;
+    position: relative;
+    display: inline-block;
 }
 
 #roi {
