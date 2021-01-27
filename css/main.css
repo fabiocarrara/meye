@@ -165,7 +165,7 @@ input[type=number] {
 #roi-dragger {
     top: 0;
     left: 0;
-    background-image: url("/img/baseline_open_with_white_18dp.png");
+    background-image: url("../img/baseline_open_with_white_18dp.png");
 }
 
 #roi-dragger:hover {
@@ -175,7 +175,7 @@ input[type=number] {
 #roi-resizer {
     bottom: 0;
     right: 0;
-    background-image: url("/img/baseline_open_in_full_white_18dp.png");
+    background-image: url("../img/baseline_open_in_full_white_18dp.png");
     -webkit-transform: scaleX(-1);
     -moz-transform: scaleX(-1);
     -o-transform: scaleX(-1);
