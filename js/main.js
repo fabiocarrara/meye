@@ -683,6 +683,10 @@ function predictLoop() {
             newX = Math.round((1 - blinkProb) * newX + blinkProb * curX);
             newY = Math.round((1 - blinkProb) * newY + blinkProb * curY);
 
+            let m = 0.2;
+            newX = Math.round((1 - m) * newX + m * curX);
+            newY = Math.round((1 - m) * newY + m * curY);
+
             let maxX = video.videoWidth - rs.value;
             let maxY = video.videoHeight - rs.value;
 
