@@ -101,24 +101,33 @@ function loadDemo(event) {
         once: true
     });
 
+    video.addEventListener('ended', event => {
+        controlPlotUpdate.dispatchEvent(new Event('click'));
+        controlTableUpdate.dispatchEvent(new Event('click'));
+    }, {
+        once: true
+    });
+
     video.src = demoData.src;
     clearData();
 
     rx.value = parseInt(demoData.rx);
     ry.value = parseInt(demoData.ry);
     rs.value = parseInt(demoData.rs);
-    rt.checked = demoData.rt;
+    rt.checked = parseInt(demoData.rt);
 
     controlPeriod.value = parseInt(demoData.period);
     controlThresholdPreview.value = parseFloat(demoData.thr);
-    controlMorphology.checked = demoData.morph;
-    controlPlotAutoUpdate.checked = "1";
-    controlTableAutoUpdate.checked = "1";
+    controlMorphology.checked = parseInt(demoData.morph);
+    controlPlotAutoUpdate.checked = false;
+    controlPlotWindowEnable.checked = false;
+    controlTableAutoUpdate.checked = false;
 
     controlPeriod.dispatchEvent(new Event('change'));
     controlThresholdPreview.dispatchEvent(new Event('input'));
     controlMorphology.dispatchEvent(new Event('change'));
     controlPlotAutoUpdate.dispatchEvent(new Event('change'));
+    controlPlotWindowEnable.dispatchEvent(new Event('change'));
     controlTableAutoUpdate.dispatchEvent(new Event('change'));
 }
 
@@ -782,68 +791,9 @@ function setPeriod(event) {
     period = event.target.value;
 }
 
-function strTimestamp() {
-    let now = new Date();
-    let y = String(now.getFullYear());
-    let M = String(now.getMonth() + 1).padStart(2, '0');
-    let d = String(now.getDate()).padStart(2, '0');
-    let h = String(now.getHours()).padStart(2, '0');
-    let m = String(now.getMinutes()).padStart(2, '0');
-    return `${y}${M}${d}-${h}${m}`;
-}
-
-function exportCsv() {
-    let header = ['timestamp', 'timecode', 'pupil-area', 'blink', 'pupil-x', 'pupil-y', 'trigger1', 'trigger2']
-    let csvHeader = ["data:text/csv;charset=utf-8," + header.join(',')];
-    let csvLines = samples
-        .map(r => [r[0].toISOString()].concat(r.slice(1)))
-        .map(r => r.join(','));
-    let csvContent = csvHeader.concat(csvLines).join('\r\n');
-    let csvUri = encodeURI(csvContent);
-
-    let usingWebcam = video.srcObject != null;
-    let filename;
-
-    if (usingWebcam)
-        filename = strTimestamp() + ".csv";
-    else if (fileInput.value)
-        filename = fileInput.value.split(/[\\/]/).pop().replace(/\.[^/.]+$/, ".csv");
-    else
-        filename = "export.csv";
-
-    let a = document.createElement("a");
-    a.download = filename;
-    a.href = csvUri;
-    a.style.display = "none";
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-}
-
-function togglePlotWindow(event) {
-    if (event.target.checked) {
-        controlPlotWindow.disabled = false;
-        chartWindow = controlPlotWindow.value;
-    } else {
-        controlPlotWindow.disabled = true;
-        chartWindow = Infinity;
-    }
-}
-
-function resizePlotWindow(event) {
-    if (event.target.disabled == false)
-        chartWindow = event.target.value;
-}
-
-
-controlClear.addEventListener('click', clearData);
-controlThreshold.addEventListener('input', setThreshold);
-controlThresholdPreview.addEventListener('input', setThreshold);
 controlPeriod.addEventListener('change', setPeriod);
-controlExportCsv.addEventListener('click', exportCsv);
-controlPlotWindowEnable.addEventListener('change', togglePlotWindow);
-controlPlotWindow.addEventListener('change', resizePlotWindow);
-controlPlotSmooth.addEventListener('change', initChartOptions);
+controlThresholdPreview.addEventListener('input', setThreshold);
+controlThreshold.addEventListener('input', setThreshold);
 
 /***************
  * CHART & TABLE
@@ -1022,8 +972,68 @@ function updateTable() {
     traceContainer.scrollTop = traceContainer.scrollHeight;
 }
 
+function strTimestamp() {
+    let now = new Date();
+    let y = String(now.getFullYear());
+    let M = String(now.getMonth() + 1).padStart(2, '0');
+    let d = String(now.getDate()).padStart(2, '0');
+    let h = String(now.getHours()).padStart(2, '0');
+    let m = String(now.getMinutes()).padStart(2, '0');
+    return `${y}${M}${d}-${h}${m}`;
+}
+
+function exportCsv() {
+    let header = ['timestamp', 'timecode', 'pupil-area', 'blink', 'pupil-x', 'pupil-y', 'trigger1', 'trigger2']
+    let csvHeader = ["data:text/csv;charset=utf-8," + header.join(',')];
+    let csvLines = samples
+        .map(r => [r[0].toISOString()].concat(r.slice(1)))
+        .map(r => r.join(','));
+    let csvContent = csvHeader.concat(csvLines).join('\r\n');
+    let csvUri = encodeURI(csvContent);
+
+    let usingWebcam = video.srcObject != null;
+    let filename;
+
+    if (usingWebcam)
+        filename = strTimestamp() + ".csv";
+    else if (fileInput.value)
+        filename = fileInput.value.split(/[\\/]/).pop().replace(/\.[^/.]+$/, ".csv");
+    else
+        filename = "export.csv";
+
+    let a = document.createElement("a");
+    a.download = filename;
+    a.href = csvUri;
+    a.style.display = "none";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+}
+
+function togglePlotWindow(event) {
+    if (event.target.checked) {
+        controlPlotWindow.disabled = false;
+        chartWindow = controlPlotWindow.value;
+    } else {
+        controlPlotWindow.disabled = true;
+        chartWindow = Infinity;
+    }
+}
+
+function resizePlotWindow(event) {
+    if (event.target.disabled == false)
+        chartWindow = event.target.value;
+}
+
+controlPlotWindowEnable.addEventListener('change', togglePlotWindow);
+controlPlotWindow.addEventListener('change', resizePlotWindow);
+controlPlotSmooth.addEventListener('change', initChartOptions);
+
 controlPlotUpdate.addEventListener('click', updateChart);
 controlTableUpdate.addEventListener('click', updateTable);
+
+controlClear.addEventListener('click', clearData);
+controlExportCsv.addEventListener('click', exportCsv);
 
 /*****
  * FPS
