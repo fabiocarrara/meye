@@ -29,7 +29,7 @@
         </fieldset>
         <fieldset id="model-params">
             <legend>Model</legend>
-            <select id="modelSelector">
+            <select id="model-selector">
                 <option>meye-segmentation_i128_s4_c1_f16_g1_a-relu-no-subj</option>
                 <option>meye-segmentation_i128_s4_c1_f16_g1_a-relu</option>
             </select>
@@ -67,8 +67,11 @@
         </aside>
         <fieldset id="video-params">
             <legend>
-                Preview
-                <label><meter id="fps-meter" min=0 value=24 max=30></meter> FPS: <span id="fps-preview"></span></label>
+                <div class="flex-legend">
+                    Output
+                    <label><meter id="fps-meter" min=0 value=24 max=30></meter> FPS: <span id="fps-preview"></span></label>
+                    <label id="backend-preview">(Backend: <span id="backend-text"></span>)</label>
+                </div>
             </legend>
             <div id="preview">
                 <div id="roi">

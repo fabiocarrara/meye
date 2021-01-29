@@ -422,7 +422,8 @@ document.getElementById('control-trigger-2').addEventListener('click', spikeTrig
  ***************/
 
 const loadingOverlay = document.getElementById('loading');
-const modelSelect = document.getElementById('modelSelector');
+const modelSelect = document.getElementById('model-selector');
+const backendIndicator = document.getElementById('backend-text');
 var model = undefined;
 
 function loadModel() {
@@ -441,6 +442,13 @@ function loadModel() {
 
 modelSelect.addEventListener('change', loadModel);
 loadModel().then(() => {
+    let backend = tf.getBackend();
+    let styleClass = (backend != "cpu") ? 'accelerated' : 'non-accelerated';
+
+    backend = (backend == "webgl") ? "WebGL" : backend.toUpperCase();
+    backendIndicator.textContent = backend;
+    backendIndicator.classList.add(styleClass);
+
     // start demo 1
     demoButtons[0].dispatchEvent(new Event('click'));
 });

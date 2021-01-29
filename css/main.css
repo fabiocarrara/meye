@@ -120,6 +120,28 @@ input[type=number] {
     width: 100%;
 }
 
+#video-params legend {
+    display: flex;
+    align-items: center;
+}
+
+#video-params legend label {
+    margin-left: 15px;
+}
+
+#backend-preview {
+    font-size: .75em;
+    text-transform: none;
+}
+
+.accelerated {
+    color: green;
+}
+
+.non-accelerated {
+    color: red;
+}
+
 #preview {
     padding: 0;
     border: 0;
