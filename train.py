@@ -275,7 +275,7 @@ if __name__ == '__main__':
     parser.add_argument('-r', '--resolution', type=int, default=128, help='Input image resolution')
 
     # model params
-    parser.add_argument('--num-stages', type=int, default=2, help='number of down-up sample stages')
+    parser.add_argument('--num-stages', type=int, default=4, help='number of down-up sample stages')
     parser.add_argument('--num-conv', type=int, default=1, help='number of convolutions per stage')
     parser.add_argument('--num-filters', type=int, default=16, help='number of conv filter at first stage')
     parser.add_argument('--grow-factor', type=float, default=1.0,
@@ -284,9 +284,9 @@ if __name__ == '__main__':
                         help='activation in upsample stages')
 
     # train params
-    parser.add_argument('--lr', type=float, default=0.01, help='learning rate')
+    parser.add_argument('--lr', type=float, default=0.001, help='learning rate')
     parser.add_argument('-b', '--batch-size', type=int, default=32, help='Batch size')
-    parser.add_argument('-e', '--epochs', type=int, default=50, help='Number of training epochs')
+    parser.add_argument('-e', '--epochs', type=int, default=750, help='Number of training epochs')
     parser.add_argument('-s', '--seed', type=int, default=23, help='Random seed')
     parser.add_argument('--resume', default=False, action='store_true', help='Resume training')
 
