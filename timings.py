@@ -3,16 +3,11 @@ import time
 
 import numpy as np
 
-from keras.models import load_model
+from tensorflow.keras.models import load_model
 from tqdm import trange
 
 
 def main(args):
-
-    # x_shape = (args.rh, args.rw, 1)
-    # y_shape = (args.rh, args.rw, 2)
-    # model = build_model(x_shape, y_shape)
-    # model.load_weights('best_weights.hdf5')
 
     model = load_model(args.model)
     data = np.empty((1, args.rh, args.rw, 1), dtype=np.float32)

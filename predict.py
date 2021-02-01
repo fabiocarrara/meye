@@ -3,7 +3,7 @@ import argparse
 import imageio
 import numpy as np
 
-from keras.models import load_model
+from tensorflow.keras.models import load_model
 from PIL import Image, ImageOps
 from tqdm import tqdm
 from utils import draw_predictions, compute_metrics
@@ -15,12 +15,10 @@ def main(args):
     fps = video.get_meta_data()['fps']
     frame_w, frame_h = video.get_meta_data()['size']
 
-    # model = build_model(x_shape, y_shape)
-    # model.load_weights('best_weights.hdf5')
     model = load_model(args.model)
     input_shape = model.input.shape[1:3]
 
-    # y, x, h, w = (51, 70, 128, 128)  # RoI
+    # default RoI
     if None in (args.rl, args.rt, args.rr, args.rb):
         side = min(frame_w, frame_h)
         args.rl = (frame_w - side) / 2
@@ -42,23 +40,33 @@ def main(args):
         eye = eye[None, :, :, None]
         return model.predict(eye)
 
-    out = imageio.get_writer(args.output, fps=fps)
+    out_video = imageio.get_writer(args.output_video, fps=fps)
 
     cropped = map(preprocess, video)
     frames_and_predictions = map(lambda x: (x, predict(x)), cropped)
 
-    for frame, predictions in tqdm(frames_and_predictions, total=n_frames):
-        img = draw_predictions(frame, predictions, thr=args.thr)
-        img = np.array(img)
-        out.append_data(img)
+    with open(args.output_csv, 'w') as out_csv:
+        print('frame,pupil-area,pupil-x,pupil-y,eye,blink', file=out_csv)
+        for idx, (frame, predictions) in enumerate(tqdm(frames_and_predictions, total=n_frames)):
+            pupil_map, tags = predictions
+            is_eye, is_blink = tags.squeeze()
+            (pupil_y, pupil_x), pupil_area = compute_metrics(pupil_map, thr=args.thr, nms=True)
 
-    out.close()
+            row = [idx, pupil_area, pupil_x, pupil_y, is_eye, is_blink]
+            row = ','.join(list(map(str, row)))
+            print(row, file=out_csv)
+
+            img = draw_predictions(frame, predictions, thr=args.thr)
+            img = np.array(img)
+            out_video.append_data(img)
+
+    out_video.close()
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Predict on test video')
     parser.add_argument('model', type=str, help='Path to model')
-    parser.add_argument('video', type=str, help='Video file to process')
+    parser.add_argument('video', type=str, default='<video0>', help='Video file to process (use \'<video0>\' for webcam)')
 
     parser.add_argument('-t', '--thr', type=float, default=0.5, help='Map Threshold')
     parser.add_argument('-rl', type=int, help='RoI X coordinate of top left corner')
@@ -66,7 +74,8 @@ if __name__ == '__main__':
     parser.add_argument('-rr', type=int, help='RoI X coordinate of right bottom corner')
     parser.add_argument('-rb', type=int, help='RoI Y coordinate of right bottom corner')
 
-    parser.add_argument('-o', '--output', default='predictions.mp4', help='Output video')
+    parser.add_argument('-ov', '--output-video', default='predictions.mp4', help='Output video')
+    parser.add_argument('-oc', '--output-csv', default='pupillometry.csv', help='Output CSV')
 
     args = parser.parse_args()
     main(args)

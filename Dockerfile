@@ -1,9 +1,5 @@
-FROM  tensorflow/tensorflow:1.8.0-gpu-py3
+FROM tensorflow/tensorflow:2.4.1-gpu-jupyter
 
-RUN apt update && apt install -y python3-tk ffmpeg
-RUN pip install \
-    keras==2.2.4 \
-    matplotlib \
-    imageio imageio-ffmpeg \
-    tqdm
+RUN apt update && apt install -y nvidia-modprobe
+RUN pip install adabelief-tf pandas imageio imageio-ffmpeg sklearn tqdm
 
