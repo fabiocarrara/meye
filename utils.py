@@ -17,30 +17,24 @@ def nms_on_area(x, s):  # x is a binary image, s is a structuring element
     return x
 
 
-def compute_metrics(y, thr=None, nms=False):
-    pupil_map = y[:, :, 0]
-    glint_map = y[:, :, 1]
+def compute_metrics(p, thr=None, nms=False):
+    p = p.squeeze()
 
     if thr:
-        pupil_map = pupil_map > thr
-        glint_map = glint_map > thr
-        
+        p = p > thr
         if nms:  # perform non-maximum suppression: keep only largest area
             s = np.ones((3, 3))  # connectivity structure
-            pupil_map = nms_on_area(pupil_map, s)
-            glint_map = nms_on_area(glint_map, s)
+            p = nms_on_area(p, s)
 
-    pc = center_of_mass(pupil_map)  # (y-coord, x-coord)
-    gc = center_of_mass(glint_map)
-    pa = pupil_map.sum()
-    ga = glint_map.sum()
-
-    return pc, gc, pa, ga
+    center = center_of_mass(p)
+    area = p.sum()
+    return center, area
 
 
 def visualizable(x, y, alpha=(.5, .5), thr=0):
     xx = np.tile(x, (3,))  # Gray -> RGB: repeat channels 3 times
-    yy = np.concatenate((y, np.zeros_like(x)), axis=-1)  # add a zero blue channel
+    yy = (y, ) + (np.zeros_like(x),) * (3 - y.shape[-1])
+    yy = np.concatenate(yy, axis=-1)  # add a zero channels to pad to RGB
     mask = yy.max(axis=-1, keepdims=True) > thr  # blend only where a prediction is present
     # mask = mask[:, :, None]
     return np.where(mask, alpha[0] * xx + alpha[1] * yy, xx)
@@ -49,11 +43,14 @@ def visualizable(x, y, alpha=(.5, .5), thr=0):
 def draw_predictions(image, predictions, thr=0):
     x = image.convert('RGBA')
 
-    (maps,), ((eye, blink),) = predictions
+    maps, tags = predictions
+    maps = maps[0] if maps.ndim == 4 else maps
+    eye, blink = tags.squeeze()
     alpha = maps.max(axis=-1, keepdims=True) > thr
 
-    zero_channel = np.zeros(image.size + (1,))
-    y = np.concatenate((maps, zero_channel, alpha), axis=-1)  # add a empty blue and masked alpha channel
+    n_pad = 3 - maps.shape[-1]
+    zero_channels = np.zeros(image.size + (n_pad,))
+    y = np.concatenate((maps, zero_channels, alpha), axis=-1)  # add pad and masked alpha channel
     y = (y * 255).astype(np.uint8)
     y = Image.fromarray(y).convert('RGBA')
 
@@ -65,17 +62,24 @@ def draw_predictions(image, predictions, thr=0):
     return preview
 
 
-def visualize(x, y, out=None):
-    n_rows = len(x) // 4
-    fig, axes = plt.subplots(n_rows, 4, figsize=(20, 20 * n_rows // 4))
+def visualize(x, y, out=None, thr=0, n_cols=4, width=20):
+    n_rows = len(x) // n_cols
+    fig, axes = plt.subplots(n_rows, n_cols, figsize=(width, width * n_rows // n_cols))
     y_masks, y_tags = y
+
+    axes = axes.flatten() if isinstance(axes, np.ndarray) else (axes,)
     
-    for xi, yi_mask, yi_tags, ax in zip(x, y_masks, y_tags, axes.flatten()):
-        i = visualizable(xi, yi_mask)
+    for xi, yi_mask, yi_tags, ax in zip(x, y_masks, y_tags, axes):
+        i = visualizable(xi, yi_mask, thr=thr)
         ax.imshow(i, cmap=plt.cm.gray)
         ax.grid(False)
-        ax.set_title('E: {:.1%} - B: {:.1%}'.format(*yi_tags))
+        if len(yi_tags) == 2:
+            title = 'E: {:.1%} - B: {:.1%}'
+        elif len(yi_tags) == 4:
+            title = 'pE: {:.1%} - pB: {:.1%} - gtE: {:.1%} - gtB: {:.1%}'
+
+        ax.set_title(title.format(*yi_tags))
     
     if out:
-        plt.savefig(out)
+        plt.savefig(out, bbox_inches='tight')
         plt.close()
