@@ -2,6 +2,7 @@
 
 > Check out [pupillometry.it](https://www.pupillometry.it) for a ready-to-use web-based mEye pupillometry tool!
 
+
 This branch provides the Python code for make predictions and train/finetune models.
 If you are interested in the code of the pupillometry web app, check out the `gh-pages` branch.
 
@@ -48,7 +49,7 @@ You can make predictions with pretrained models on pre-recorded videos or webcam
     
 ## Training Models
 
-  1. Download our dataset (URL coming soon) or prepare your dataset following our dataset's structure.
+  1. Download our dataset ([NN_human_mouse_eyes.zip](https://doi.org/10.5281/zenodo.4488164), 246.4 MB) or prepare your dataset following our dataset's structure.
      The dataset should be placed in `data/<dataset_name>`.
      
   2. If you are using a custom dataset, edit `train.py` to perform the train/validation/test split of your data.
@@ -62,3 +63,21 @@ You can make predictions with pretrained models on pre-recorded videos or webcam
     ```bash
     python train.py -h
     ```
+    
+## References
+
+### Dataset
+ [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.4488164.svg)](https://doi.org/10.5281/zenodo.4488164)
+
+If you use our dataset, please cite:
+
+     @dataset{raffaele_mazziotti_2021_4488164,
+       author       = {Raffaele Mazziotti and Fabio Carrara and Aurelia Viglione and Lupori Leonardo and Lo Verde Luca and Benedetto Alessandro and Ricci Giulia and Sagona Giulia and Amato Giuseppe and Pizzorusso Tommaso},
+       title        = {{Human and Mouse Eyes for Pupil Semantic Segmentation}},
+       month        = feb,
+       year         = 2021,
+       publisher    = {Zenodo},
+       version      = {1.0},
+       doi          = {10.5281/zenodo.4488164},
+       url          = {https://doi.org/10.5281/zenodo.4488164}
+     }
