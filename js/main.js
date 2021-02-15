@@ -354,7 +354,8 @@ function updatePupilLocator(x, y) {
 /**************
  * TRIGGERS
  *************/
-var nTriggers = 2;
+var activeTriggers = {q: 0, w: 1, e: 2, r: 3};
+var nTriggers = Object.keys(activeTriggers).length;
 var triggers = new Array(nTriggers).fill(0);
 var triggersToReset = [];
 
@@ -366,56 +367,35 @@ function resetTrigger(triggerId) {
     triggers[triggerId] = 0;
 }
 
-function KeyTDownHandler(event) {
+
+function KeyDownHandler(event) {
     var key = event.key || event.keyCode;
-    if (key == "T" || key == "t") {
-        document.removeEventListener('keydown', KeyTDownHandler);
-        setTrigger(0);
-    }
+    if (key in activeTriggers)
+        setTrigger(activeTriggers[key]);
+
     return true;
 }
 
-function KeyYDownHandler(event) {
+function KeyUpHandler(event) {
     var key = event.key || event.keyCode;
-    if (key == "Y" || key == "y") {
-        document.removeEventListener('keydown', KeyYDownHandler);
-        setTrigger(1);
-    }
+    if (key in activeTriggers)
+        resetTrigger(activeTriggers[key]);
+
     return true;
 }
 
-function KeyTUpHandler(event) {
-    var key = event.key || event.keyCode;
-    if (key == "T" || key == "t") {
-        resetTrigger(0);
-        document.addEventListener('keydown', KeyTDownHandler);
-    }
-    return true;
-}
-
-function KeyYUpHandler(event) {
-    var key = event.key || event.keyCode;
-    if (key == "Y" || key == "y") {
-        resetTrigger(1);
-        document.addEventListener('keydown', KeyYDownHandler);
-    }
-    return true;
-}
-
-document.addEventListener('keydown', KeyTDownHandler, false);
-document.addEventListener('keydown', KeyYDownHandler, false);
-document.addEventListener('keyup', KeyTUpHandler, false);
-document.addEventListener('keyup', KeyYUpHandler, false);
+document.addEventListener('keydown', KeyDownHandler, true);
+document.addEventListener('keyup', KeyUpHandler, true);
 
 function spikeTrigger(event) {
     const triggerId = parseInt(event.target.dataset.triggerId);
-    triggers[triggerId] = 1;
+    setTrigger(triggerId);
     triggersToReset.push(triggerId);
 }
 
-document.getElementById('control-trigger-1').addEventListener('click', spikeTrigger);
-document.getElementById('control-trigger-2').addEventListener('click', spikeTrigger);
-
+document.getElementsByClassName('control-trigger').forEach((e) => {
+   e.addEventListener('click', spikeTrigger); 
+});
 
 /****************
  * MODEL
@@ -991,7 +971,10 @@ function strTimestamp() {
 }
 
 function exportCsv() {
-    let header = ['timestamp', 'timecode', 'pupil-area', 'blink', 'pupil-x', 'pupil-y', 'trigger1', 'trigger2']
+    let header = ['timestamp', 'timecode', 'pupil-area', 'blink', 'pupil-x', 'pupil-y'];
+    let triggerHeader = Array.from(new Array(nTriggers), (val, index) => 'trigger' + (index+1));
+    header = header.concat(triggerHeader);
+    
     let csvHeader = ["data:text/csv;charset=utf-8," + header.join(',')];
     let csvLines = samples
         .map(r => [r[0].toISOString()].concat(r.slice(1)))

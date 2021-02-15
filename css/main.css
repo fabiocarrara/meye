@@ -93,7 +93,7 @@ input[type=number] {
 
 #pre-post-params fieldset {
     display: flex;
-    flex-flow: column nowrap;
+    flex-direction: column;
     width: 200px;
 }
 
@@ -112,8 +112,14 @@ input[type=number] {
 }
 
 #triggers-params {
+    flex-wrap: wrap;
     flex-direction: row !important;
     justify-content: space-between;
+}
+
+.control-trigger {
+    width: 48%;
+    margin: 2px;
 }
 
 #control-thr {
