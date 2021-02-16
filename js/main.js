@@ -354,6 +354,8 @@ function updatePupilLocator(x, y) {
 /**************
  * TRIGGERS
  *************/
+var triggerButtons = {};
+var triggerColors = ['#FF9900', '#109618', '#990099', '#0099C6'];
 var activeTriggers = {q: 0, w: 1, e: 2, r: 3};
 var nTriggers = Object.keys(activeTriggers).length;
 var triggers = new Array(nTriggers).fill(0);
@@ -361,12 +363,13 @@ var triggersToReset = [];
 
 function setTrigger(triggerId) {
     triggers[triggerId] = 1;
+    triggerButtons[triggerId].style.backgroundColor = triggerColors[triggerId];
 }
 
 function resetTrigger(triggerId) {
     triggers[triggerId] = 0;
+    triggerButtons[triggerId].style.backgroundColor = 'inherit';
 }
-
 
 function KeyDownHandler(event) {
     var key = event.key || event.keyCode;
@@ -393,8 +396,10 @@ function spikeTrigger(event) {
     triggersToReset.push(triggerId);
 }
 
-document.getElementsByClassName('control-trigger').forEach((e) => {
-   e.addEventListener('click', spikeTrigger); 
+document.getElementsByClassName('control-trigger').forEach(element => {
+    const triggerId = parseInt(element.dataset.triggerId);
+    triggerButtons[triggerId] = element;
+    element.addEventListener('click', spikeTrigger); 
 });
 
 /****************
