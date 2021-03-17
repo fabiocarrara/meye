@@ -116,6 +116,8 @@ def main(args):
                       'f{num_filters}_' \
                       'g{grow_factor}_' \
                       'a-{up_activation}' \
+                      't-{conv_type}' \
+                      'p-{use_aspp}'  \
                       '/'.format_map(vars(args))
 
     best_model_path = exp.path_to(best_model_path)
@@ -282,6 +284,9 @@ if __name__ == '__main__':
                         help='# filters at stage i = num-filters * grow-factor ** i')
     parser.add_argument('--up-activation', default='relu', choices=('relu', 'lrelu'),
                         help='activation in upsample stages')
+    parser.add_argument('--conv-type', default='conv', choices=('conv', 'bn-conv', 'sep-conv', 'sep-bn-conv'),
+                        help='convolution type')
+    parser.add_argument('--use-aspp', default=False, action='store_true', help='Use Atrous Spatial Pyramid Pooling')
 
     # train params
     parser.add_argument('--lr', type=float, default=0.001, help='learning rate')
