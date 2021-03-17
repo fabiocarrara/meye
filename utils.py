@@ -40,13 +40,14 @@ def visualizable(x, y, alpha=(.5, .5), thr=0):
     return np.where(mask, alpha[0] * xx + alpha[1] * yy, xx)
 
 
-def draw_predictions(image, predictions, thr=0):
+def draw_predictions(image, predictions, thr=None):
     x = image.convert('RGBA')
 
     maps, tags = predictions
     maps = maps[0] if maps.ndim == 4 else maps
     eye, blink = tags.squeeze()
-    alpha = maps.max(axis=-1, keepdims=True) > thr
+    alpha = maps.max(axis=-1, keepdims=True)
+    alpha = alpha > thr if thr is not None else alpha
 
     n_pad = 3 - maps.shape[-1]
     zero_channels = np.zeros(image.size + (n_pad,))
@@ -76,10 +77,13 @@ def visualize(x, y, out=None, thr=0, n_cols=4, width=20):
         if len(yi_tags) == 2:
             title = 'E: {:.1%} - B: {:.1%}'
         elif len(yi_tags) == 4:
-            title = 'pE: {:.1%} - pB: {:.1%} - gtE: {:.1%} - gtB: {:.1%}'
+            title = 'pE: {:.1%} - pB: {:.1%}\ntE: {:.1%} - tB: {:.1%}'
 
-        ax.set_title(title.format(*yi_tags))
-    
+        ax.text(x=0.5, y=-0.02, s=title.format(*yi_tags), transform=ax.transAxes,
+                ha='center', va='top',
+                fontsize=width * 4 / 5, fontfamily='monospace')
+        ax.set_axis_off()
+
     if out:
         plt.savefig(out, bbox_inches='tight')
         plt.close()
