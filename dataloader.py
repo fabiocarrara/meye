@@ -1,221 +1,169 @@
 import os
-
+import math
 import numpy as np
 import pandas as pd
 import tensorflow as tf
+import tensorflow_addons as tfa
 
-from PIL import Image, ImageEnhance
-from tensorflow.keras.preprocessing.image import load_img
-from scipy.ndimage import center_of_mass
-
-
-def is_contained(ltrb, corners):
-    """
-        A------B
-        |      |
-        C------D
-    """
-    A, B, C, D = corners
-
-    def is_in(X):
-        return (np.dot(C - A, X - A) > 0 and
-                np.dot(A - C, X - C) > 0 and
-                np.dot(B - A, X - A) > 0 and
-                np.dot(A - B, X - B) > 0)
-
-    l, t, r, b = ltrb
-    lt = np.array((l, t))
-    lb = np.array((l, b))
-    rt = np.array((r, t))
-    rb = np.array((r, b))
-
-    c1 = is_in(lt)
-    c2 = is_in(lb)
-    c3 = is_in(rt)
-    c4 = is_in(rb)
-
-    return c1 and c2 and c3 and c4
-
+from functools import partial
 
 # find pupil center
 def _get_pupil_position(pmap, datum, x_shape):
-    with np.errstate(invalid='raise'):
-        try:
-            return center_of_mass(pmap)
-        except:
-            if 'roi_x' in datum and 'roi_y' in datum and 'roi_w' in datum:
-                half = datum['roi_w'] / 2
-                return datum['roi_y'] + half, datum['roi_x'] + half
+    total_mass = tf.reduce_sum(pmap)
+    if total_mass > 0:
+        shape = tf.shape(pmap)
+        h, w = shape[0], shape[1]
+        ii, jj = tf.meshgrid(tf.range(h), tf.range(w), indexing='ij')
+        y = tf.reduce_sum(tf.cast(ii, 'float32') * pmap) / total_mass
+        x = tf.reduce_sum(tf.cast(jj, 'float32') * pmap) / total_mass
+        return tf.stack((y, x))
 
-            # fallback to center of the image
-            return x_shape[0] / 2, x_shape[1] / 2
+    if 'roi_x' in datum and 'roi_y' in datum and 'roi_w' in datum:
+        roi_x = tf.cast(datum['roi_x'], 'float32')
+        roi_y = tf.cast(datum['roi_y'], 'float32')
+        half = tf.cast(datum['roi_w'] / 2, 'float32')
+        result = tf.stack((roi_y + half, roi_x + half))
+    else:  # fallback to center of the image
+        result = tf.cast(tf.stack((x_shape[0] / 2, x_shape[1] / 2)), dtype='float32')
+
+    return result
 
 
-def load_datum(datum, x_shape, deterministic=True, glint=False, sample_weights=False):
+@tf.function
+def load_datum(datum, x_shape=(128, 128, 1), augment=False, glint=False, sample_weights=False):
     channels = 2 if glint else 1
-    jpeg_thr = 0.0
 
-    x = load_img(datum['filename'], color_mode='grayscale')
-    y = load_img(datum['target'])
+    x = tf.io.read_file(datum['filename'])
+    y = tf.io.read_file(datum['target'])
 
-    w, h = x.size
+    # HWC [0,1] float32
+    x = tf.io.decode_image(x, channels=1, dtype='float32', expand_animations=False)
+    y = tf.io.decode_image(y, dtype='float32', expand_animations=False)
 
-    pupil_map = np.array(y)[:,:,0] > jpeg_thr  # R channel = pupil
-    pupil_area = pupil_map.sum()
+    shape = tf.cast(tf.shape(x), 'float32')
+    h, w = shape[0], shape[1]
+    half_wh = tf.stack((w, h)) / 2
 
-    if deterministic:
-        pupil_new_pos = np.array([.5, .5])
-        s = 128
-        pupil_new_pos_yx = (pupil_new_pos * s).astype(int)
-        pupil_pos_yx = _get_pupil_position(pupil_map, datum, x_shape)
-        oy, ox = pupil_pos_yx - pupil_new_pos_yx
-        l, t, r, b = (ox, oy, ox + s, oy + s)  # Left, Upper; Right, Lower
-        # try move the window if a corner is outside the image
-        dx = -l if l < 0 else w - r if r > w else 0
-        dy = -t if t < 0 else h - b if b > h else 0
-        l, t, r, b = (l + dx, t + dy, r + dx, b + dy)
-        # the image may still be smaller than the crop area, adjusting ...
-        crop = (max(0, l), max(0, t), min(w, r), min(h, b))
+    pupil_map = y[:, :, 0]
+    pupil_area = tf.reduce_sum(pupil_map)
+
+    pupil_pos_yx = _get_pupil_position(pupil_map, datum, x_shape)
+
+    if not augment:
+        s = tf.minimum(tf.cast(x_shape[0], 'float32'), tf.minimum(h, w))
+        pupil_pos_xy = pupil_pos_yx[::-1]
+        pupil_new_pos_xy = tf.constant([.5, .5]) * s
+
+        crop_xy = pupil_pos_xy - pupil_new_pos_xy  # crop origin
+        # find the feasibility region for the top-left corner of a square crop of size s
+        crop_min, crop_max = tf.constant((0., 0.)), tf.stack((w - s, h - s))
+        crop_xy = tf.clip_by_value(crop_xy, crop_min, crop_max)
+
+        p = tfa.image.translations_to_projective_transforms(-crop_xy)
 
     else:  # data augmentation
         # random rotation: pick random angle
-        angle = np.random.uniform(0, 90)
-        x = x.rotate(angle, expand=True)
-        y = y.rotate(angle, expand=True)
-
-        # find pupil in rotated image
-        pupil_map = np.array(y)[:, :, 0] > jpeg_thr # R channel = pupil
-        pupil_area = pupil_map.sum()
-        pupil_pos_yx = _get_pupil_position(pupil_map, datum, x_shape)
-
-        # find image corners in rotated image
-        theta = np.radians(angle)
-        cos_t, sin_t = np.cos(theta), np.sin(theta)
-        rot = np.array([[cos_t, sin_t], [-sin_t, cos_t]])  # build rotation for -theta (compensate flipped y-axis)
-        centered_corners = np.array([[-w / 2, -h / 2], [w / 2, -h / 2], [-w / 2, h / 2], [w / 2, h / 2]])
-        rotated_centered_corners = np.dot(centered_corners, rot.T)
-        rotated_corners = rotated_centered_corners - rotated_centered_corners.min(axis=0, keepdims=True)
+        theta = tf.random.uniform([], 0, math.pi / 2)
+        cos_t = tf.math.cos(theta)
+        sin_t = tf.math.sin(theta)
 
         # random scale: pick random size of crop around the pupil
-        # (this is constrained by the rotation angle and the original image size
+        # (constrained by the rotation angle and the original image size)
         min_s = 15
-        max_s = np.floor(min(w, h) / (sin_t + cos_t))
-        s = np.random.normal(loc=128, scale=50)
-        s = np.clip(s, min_s, max_s)
-
-        A, B, C, D = rotated_corners
+        max_s = tf.math.floor(tf.minimum(w, h) / (sin_t + cos_t))
+        s = tf.random.normal([], mean=128, stddev=50)
+        s = tf.clip_by_value(s, min_s, max_s)
 
         # find the feasibility region for the top-left corner of a square crop of size s
-        # the region is a rectangle MNOP
-        M = A + ((B - A) / w) * sin_t * s
-        N = B + ((A - B) / w) * cos_t * s
-        O = -s + D + ((C - D) / w) * sin_t * s
-        P = -s + C + ((D - C) / w) * cos_t * s
-        MNOP = np.stack((M,N,O,P))
+        crop_lt = tf.stack((s * sin_t, 0))
+        crop_rb = tf.stack((w - s * cos_t, h - s * (sin_t + cos_t)))
 
         # pick a new random position (in the crop space) in which to place the pupil center
         std = 0.2 if (datum['blink'] == 1) else 0.5  # make sure blinking eyes are shown
-        pupil_new_pos_pct = np.random.normal(loc=0.5, scale=std, size=2)
-        pupil_new_pos_yx = (pupil_new_pos_pct * s).astype(int)
-        crop_top, crop_left = pupil_pos_yx - pupil_new_pos_yx
-        OC = np.array([crop_left, crop_top])
+        pupil_new_pos_yx = tf.random.normal((2,), mean=0.5, stddev=std) * s
 
-        # ensure the crop origin is in the feasible region (MNOP)
-        ## we do this in the feasibility region coordinate system (if xy in [0,1]^2, the crop is good):
-        ## we first translate to M as new origin
-        MNOP_ = MNOP - M
-        OC_ = OC - M
-        M_,N_,O_,P_ = MNOP_
+        pupil_pos_y, pupil_pos_x = pupil_pos_yx[0], pupil_pos_yx[1]
+        pupil_new_pos_y, pupil_new_pos_x = pupil_new_pos_yx[0], pupil_new_pos_yx[1]
 
-        ## the we use MN and MP as new basis
-        feasible2img = np.array([N_,P_]).T
-        img2feasible = np.linalg.inv(feasible2img)
-        OC_ = np.dot(img2feasible, OC_)
+        # crop origin (works.. but xy seem swapped, to double check)
+        crop_xy = tf.stack((
+            pupil_pos_y + pupil_new_pos_x * sin_t - pupil_new_pos_y * cos_t,
+            pupil_pos_x - pupil_new_pos_x * cos_t - pupil_new_pos_y * sin_t
+        ))
 
-        ## we apply constraints in the new space and transform back
-        OC_ = np.clip(OC_, 0, 1)
-        crop_left, crop_top = np.dot(feasible2img, OC_) + M
+        # ensure crop is inside image
+        crop_xy = tf.clip_by_value(crop_xy, crop_lt, crop_rb)
 
-        crop = (crop_left, crop_top, crop_left + s, crop_top + s)
-        
-    x = x.crop(crop)
-    y = y.crop(crop)
+        # compose transformation
+        tr1 = tfa.image.translations_to_projective_transforms(half_wh - crop_xy)
+        rot = tfa.image.angles_to_projective_transforms(theta, h, w)
+        tr2 = tfa.image.translations_to_projective_transforms(-half_wh)
+        p = tfa.image.compose_transforms((tr1, rot, tr2))
+
+    x = tfa.image.transform(x, p, output_shape=(s, s))
+    y = tfa.image.transform(y, p, output_shape=(s, s))
 
     # compute how much pupil is left in the image
-    new_pupil_map = np.array(y)[:, :, 0] > jpeg_thr
-    new_pupil_area = new_pupil_map.sum()
+    new_pupil_map = y[:, :, 0]  # > jpeg_thr
+    new_pupil_area = tf.reduce_sum(new_pupil_map)
 
-    # print(new_pupil_area, pupil_area)
-    eye = (new_pupil_area / pupil_area) if pupil_area > 0 else 0
+    eye = (new_pupil_area / pupil_area) if pupil_area > 0 else 0.
 
-    if datum['eye'] == 0:  # set noblink if there is no eye
-        datum['blink'] = 0
+    datum_eye = tf.cast(datum['eye'], 'float32')
+    datum_blink = tf.cast(datum['blink'], 'float32')
+    if datum_eye == 0:  # set noblink if there is no eye
+        datum_blink = 0.
 
-    if (datum['eye'] == 1) & (datum['blink'] == 0):  # update eye percentage due to crop (if no blink)
-        datum['eye'] = eye
+    if (datum_eye == 1) & (datum_blink == 0):  # update eye percentage due to crop (if no blink)
+        datum_eye = eye
 
-    x = x.resize(x_shape[:2])  # TODO: check interpolation type
-    y = y.resize(x_shape[:2])
+    if tf.math.reduce_any(tf.shape(x)[:2] != x_shape[:2]):
+        x = tf.image.resize(x, x_shape[:2])
+        y = tf.image.resize(y, x_shape[:2])
 
-    if not deterministic:
+    if augment:
         # random flip
-        if np.random.rand() < .5:
-            x = x.transpose(Image.FLIP_LEFT_RIGHT)
-            y = y.transpose(Image.FLIP_LEFT_RIGHT)
+        if tf.random.uniform([]) < 0.5:
+            x = tf.image.flip_left_right(x)
+            y = tf.image.flip_left_right(y)
 
-        if np.random.rand() < .5:
-            x = x.transpose(Image.FLIP_TOP_BOTTOM)
-            y = y.transpose(Image.FLIP_TOP_BOTTOM)
+        if tf.random.uniform([]) < 0.5:
+            x = tf.image.flip_up_down(x)
+            y = tf.image.flip_up_down(y)
 
-        # random brightness, contrast, sharpness
-        brightness_factor = np.random.normal(loc=1.0, scale=0.4)
-        contrast_factor = np.random.normal(loc=1.0, scale=0.4)
-        sharpness_factor = np.random.normal(loc=1.0, scale=0.4)
+        # random brightness, contrast, saturation
+        contrast_factor = tf.random.normal([], mean=1.0, stddev=0.4)
+        # saturation_factor = tf.random.normal([], mean=1.0, stddev=0.4)
 
-        x = ImageEnhance.Brightness(x).enhance(brightness_factor)
-        x = ImageEnhance.Contrast(x).enhance(contrast_factor)
-        x = ImageEnhance.Sharpness(x).enhance(sharpness_factor)
+        x = tf.image.random_brightness(x, 0.2)
+        x = tf.image.adjust_contrast(x, contrast_factor)
+        x = tf.clip_by_value(x, 0, 1)
+        # x = tf.image.random_jpeg_quality(x, 50, 100)
+        # x = tf.image.adjust_saturation(x, saturation_factor)
 
-    x = np.expand_dims(np.array(x, dtype=np.float32), -1) / 255.0
-
-    y = np.array(y, dtype=np.float32)[:, :, :channels] / 255.0  # keep only red (and green) channels
-    y = np.greater(y, jpeg_thr, out=y)  # remove jpeg artifacts in maps
-        
-    y2 = np.array([datum['eye'], datum['blink']], dtype=np.float32)
+    y = y[:, :, :channels]
+    y2 = tf.stack((datum_eye, datum_blink))
 
     # 5x weight to blinks
     if sample_weights:
-        sample_weight2 = 5. if (datum['blink'] == 1) else 1.
-        sample_weight = np.full(x_shape, sample_weight2, dtype=np.float32)
-        sample_weight2 = np.array(sample_weight2, dtype=np.float32)
+        sample_weight2 = 5. if (datum_blink == 1) else 1.
+        sample_weight = tf.fill(x_shape, sample_weight2, dtype='float32')
+        sample_weight2 = tf.constant(sample_weight2, dtype='float32')
         return x, y, y2, sample_weight, sample_weight2
 
     return x, y, y2
 
 
-def get_loader(dataframe, x_shape=(128, 128, 1), batch_size=8, deterministic=False, sample_weights=False, shuffle=False):
+
+def get_loader(dataframe, batch_size=8, shuffle=False, **kwargs):
     categories = dataframe.exp.values
 
     dataset = tf.data.Dataset.from_tensor_slices(dict(dataframe))
-    data_keys = dataset.element_spec.keys()
 
     if shuffle:
         dataset = dataset.shuffle(1000)
 
-    def _load_datum(*tensors):
-        tensors = map(lambda x: x.decode() if isinstance(x, bytes) else x, tensors)
-        datum = dict(zip(data_keys, tensors))
-        return load_datum(datum, x_shape=x_shape, deterministic=deterministic, sample_weights=sample_weights)
-
-    out_types = [tf.float32, tf.float32, tf.float32]
-    if sample_weights:
-        out_types += [tf.float32, tf.float32]
-
-    def _wrapped_load_datum(datum):
-        sample_values = [datum[k] for k in data_keys]
-        return tf.numpy_function(_load_datum, sample_values, out_types)
-
-    dataset = dataset.map(_wrapped_load_datum, num_parallel_calls=tf.data.AUTOTUNE)
+    dataset = dataset.map(partial(load_datum, **kwargs), num_parallel_calls=tf.data.AUTOTUNE, deterministic=not shuffle)
     dataset = dataset.batch(batch_size)
 
     # pack targets for keras
@@ -228,7 +176,7 @@ def get_loader(dataframe, x_shape=(128, 128, 1), batch_size=8, deterministic=Fal
 
         return [inputs, targets]
 
-    dataset = dataset.map(_pack_targets)
+    dataset = dataset.map(_pack_targets, num_parallel_calls=tf.data.AUTOTUNE, deterministic=not shuffle)
     dataset = dataset.prefetch(tf.data.AUTOTUNE)
     return dataset, categories
 

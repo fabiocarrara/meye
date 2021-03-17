@@ -63,9 +63,9 @@ def main(args):
     x_shape = (args.resolution, args.resolution, 1)
     y_shape = (args.resolution, args.resolution, 1)
 
-    train_gen, _ = get_loader(train_data, x_shape=x_shape, batch_size=args.batch_size, shuffle=True, sample_weights=False)
-    val_gen, val_categories = get_loader(val_data, x_shape=x_shape, batch_size=args.batch_size, deterministic=True)
-    test_gen, test_categories = get_loader(test_data, x_shape=x_shape, batch_size=1, deterministic=True)
+    train_gen, _ = get_loader(train_data, batch_size=args.batch_size, shuffle=True, augment=True, x_shape=x_shape)
+    val_gen, val_categories = get_loader(val_data, batch_size=args.batch_size, x_shape=x_shape)
+    test_gen, test_categories = get_loader(test_data, batch_size=1, x_shape=x_shape)
 
     # x, y = train_gen[0]
     # visualize(x, y)
