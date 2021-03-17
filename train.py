@@ -16,27 +16,31 @@ import pandas as pd
 import tensorflow as tf
 from tensorflow.keras import backend as K
 from tensorflow.keras.models import load_model
-from tensorflow.keras.optimizers import SGD
 from tensorflow.keras.callbacks import ModelCheckpoint, LearningRateScheduler, CSVLogger
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report, roc_curve, auc, precision_recall_curve, average_precision_score
 from adabelief_tf import AdaBeliefOptimizer
+from tqdm.keras import TqdmCallback
+from tqdm import tqdm
+from functools import partial
 
 from dataloader import get_loader, load_datasets
 from model import build_model
 from utils import visualize
 from expman import Experiment
 
+import evaluate
 
-def iou_coef(y_true, y_pred, smooth=0.001, thr=0.5):
-    y_pred = K.cast(y_pred > thr, 'float32')
+
+def iou_coef(y_true, y_pred, smooth=0.001, thr=None):
+    y_pred = K.cast(y_pred > thr, 'float32') if thr is not None else y_pred
     intersection = K.sum(K.abs(y_true * y_pred), axis=[1, 2, 3])
     union = K.sum(y_true, [1, 2, 3]) + K.sum(y_pred, [1, 2, 3]) - intersection
     iou = K.mean((intersection + smooth) / (union + smooth), axis=0)
     return iou
 
-def dice_coef(y_true, y_pred, smooth=0.001, thr=0.5):
-    y_pred = K.cast(y_pred > thr, 'float32')
+def dice_coef(y_true, y_pred, smooth=0.001, thr=None):
+    y_pred = K.cast(y_pred > thr, 'float32') if thr is not None else y_pred
     intersection = K.sum(y_true * y_pred, axis=[1, 2, 3])
     union = K.sum(y_true, axis=[1, 2, 3]) + K.sum(y_pred, axis=[1, 2, 3])
     dice = K.mean((2. * intersection + smooth) / (union + smooth), axis=0)
@@ -44,22 +48,29 @@ def dice_coef(y_true, y_pred, smooth=0.001, thr=0.5):
 
 
 def main(args):
-    exp = Experiment(args, ignore=('eval_only', 'epochs', 'resume'))
+    exp = Experiment(args, root='runs_subjects_iccv', ignore=('eval_only', 'epochs', 'resume'))
+    print(exp)
     np.random.seed(args.seed)
     tf.random.set_seed(args.seed)
 
     data = load_datasets(args.data)
 
     # TRAIN/VAL/TEST SPLIT
-    val_subjects = (6, 9, 11, 13, 16, 28, 30, 48, 49)
-    test_subjects = (3, 4, 19, 38, 45, 46, 51, 52)
-    train_data = data[~data['sub'].isin(val_subjects + test_subjects)]
-    val_data = data[data['sub'].isin(val_subjects)]
-    test_data = data[data['sub'].isin(test_subjects)]
+    if args.split == 'subjects':  # by SUBJECTS
+        val_subjects = (6, 9, 11, 13, 16, 28, 30, 48, 49)
+        test_subjects = (3, 4, 19, 38, 45, 46, 51, 52)
+        train_data = data[~data['sub'].isin(val_subjects + test_subjects)]
+        val_data = data[data['sub'].isin(val_subjects)]
+        test_data = data[data['sub'].isin(test_subjects)]
+
+    elif args.split == 'random':  # 70-20-10 %
+        train_data, valtest_data = train_test_split(data, test_size=.3, shuffle=True)
+        val_data, test_data = train_test_split(valtest_data, test_size=.33)
 
     lengths = map(len, (data, train_data, val_data, test_data))
     print("Total: {} - Train / Val / Test: {} / {} / {}".format(*lengths))
 
+    # target_size = (args.resolution, args.resolution)
     x_shape = (args.resolution, args.resolution, 1)
     y_shape = (args.resolution, args.resolution, 1)
 
@@ -67,46 +78,66 @@ def main(args):
     val_gen, val_categories = get_loader(val_data, batch_size=args.batch_size, x_shape=x_shape)
     test_gen, test_categories = get_loader(test_data, batch_size=1, x_shape=x_shape)
 
-    # x, y = train_gen[0]
-    # visualize(x, y)
-    config = vars(args)
-    model = build_model(x_shape, y_shape, config)
-    model.summary()
+    # train_gen, _ = get_loader(train_data, batch_size=args.batch_size, shuffle=True, augment=True, target_size=target_size)
+    # val_gen, val_categories = get_loader(val_data, batch_size=args.batch_size, target_size=target_size)
+    # test_gen, test_categories = get_loader(test_data, batch_size=1, target_size=target_size)
 
-    optimizer = AdaBeliefOptimizer(learning_rate=args.lr)
+    log = exp.path_to('log.csv')
+    best_ckpt_path = exp.path_to('best_weights.h5')
+    best_mask_ckpt_path = exp.path_to('best_weights_mask.h5')
+    last_ckpt_path = exp.path_to('last_weights.h5')
+
+    if args.resume and os.path.exists(last_ckpt_path):
+        custom_objects={'AdaBeliefOptimizer': AdaBeliefOptimizer, 'iou_coef': iou_coef, 'dice_coef': dice_coef}
+        model = tf.keras.models.load_model(last_ckpt_path, custom_objects=custom_objects)
+        optimizer = model.optimizer
+        initial_epoch = len(pd.read_csv(log))
+    else:
+        config = vars(args)
+        model = build_model(x_shape, y_shape, config)
+        optimizer = AdaBeliefOptimizer(learning_rate=args.lr, print_change_log=False)
+        initial_epoch = 0
+
     model.compile(optimizer=optimizer,
                   loss='binary_crossentropy',
                   metrics={'mask': [iou_coef, dice_coef],
                            'tags': 'binary_accuracy'})
 
-    log = exp.path_to('log.csv')
-    best_ckpt_path = exp.path_to('best_weights.h5')
-    last_ckpt_path = exp.path_to('last_weights.h5')
+    make_eval = False
+    model_stopped_file = exp.path_to('early_stopped.txt')
+    if not args.eval_only and not os.path.exists(model_stopped_file) and initial_epoch < args.epochs:
+        # the checkpointer automatically saves the model which gave the best metric value on the validation set
+        best_checkpointer = ModelCheckpoint(best_ckpt_path, monitor='val_loss', save_best_only=True, save_weights_only=True)
+        best_mask_checkpointer = ModelCheckpoint(best_ckpt_path, monitor='val_mask_dice_coef', mode='max', save_best_only=True, save_weights_only=True)
+        last_checkpointer = ModelCheckpoint(last_ckpt_path, save_best_only=False, save_weights_only=False)
+        logger = CSVLogger(log, append=args.resume)
+        progress = TqdmCallback(verbose=1, initial=initial_epoch, dynamic_ncols=True)
+        early_stop = tf.keras.callbacks.EarlyStopping(monitor='val_mask_dice_coef', mode='max', patience=100)
+        
+        #tb_callback = tf.keras.callbacks.TensorBoard(log_dir='prova_log_dir',
+        #                                             profile_batch='50, 150')
 
-    # the checkpointer automatically saves the model which gave the best metric value on the validation set
-    best_checkpointer = ModelCheckpoint(best_ckpt_path, monitor='val_loss', save_best_only=True, save_weights_only=True)
-    last_checkpointer = ModelCheckpoint(last_ckpt_path, save_best_only=False, save_weights_only=False)
-    logger = CSVLogger(log, append=args.resume)
+        # lr_scheduler = LearningRateScheduler(lambda epoch, lr: lr / (10 ** (epoch // 500)))
+        callbacks = [best_checkpointer, best_mask_checkpointer, last_checkpointer, logger, progress, early_stop] #, tb_callback] # , lr_scheduler]
 
-    callbacks = [best_checkpointer, last_checkpointer, logger]
-
-    initial_epoch = 0
-    if args.resume and os.path.exists(last_ckpt_path):
-        custom_objects={'AdaBeliefOptimizer': AdaBeliefOptimizer, 'iou_coef': iou_coef, 'dice_coef': dice_coef}
-        model = tf.keras.models.load_model(last_ckpt_path, custom_objects=custom_objects)
-        initial_epoch = len(pd.read_csv(log))
-
-    if not args.eval_only:
         model.fit(train_gen,
                   epochs=args.epochs,
                   callbacks=callbacks,
                   initial_epoch=initial_epoch,
                   steps_per_epoch=len(train_gen),
                   validation_data=val_gen,
-                  validation_steps=len(val_gen))
+                  validation_steps=len(val_gen),
+                  verbose=False)
+
+        if model.stop_training:
+            print('EARLY STOPPED!')
+            open(model_stopped_file, 'w').close()
+
+        make_eval = True
 
     # load best checkpoint
-    model.load_weights(best_ckpt_path)
+    ckpt_path = best_mask_ckpt_path if os.path.exists(best_mask_ckpt_path) else best_ckpt_path
+    model.load_weights(ckpt_path)
 
     # today = datetime.datetime.now().strftime('%Y-%m-%d')
     best_model_path = 'meye-segmentation_' \
@@ -136,6 +167,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='')
     # data params
     parser.add_argument('-d', '--data', nargs='+', default=default_data, help='Data directory (may be multiple)')
+    parser.add_argument('--split', default='random', choices=('random', 'subjects'), help='How to split data')
     parser.add_argument('-r', '--resolution', type=int, default=128, help='Input image resolution')
 
     # model params
