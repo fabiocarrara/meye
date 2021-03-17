@@ -1,0 +1,82 @@
+<!doctype html>
+<html>
+    <head>
+        <title>Efficiency Tests</title>
+        <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs/dist/tf.min.js" type="text/javascript"></script>
+        <script src="iccv/models.js" type="text/javascript"></script>
+        <script type="text/javascript">
+
+            var running = false;
+            var stop = false;
+            var timings = {};
+
+            models.sort()
+
+            function getMean(array) {
+                return array.reduce((a, b) => a + b) / array.length;
+            }
+
+            async function measureTimings() {
+                const button = document.getElementById("button");
+                const log = document.getElementById("log");
+
+                if (running) {
+                    running = false;
+                    button.innerHTML = "Stopping ...";
+                    return;
+                }
+
+                running = true;
+                button.innerHTML = "Stop";
+
+                const x = tf.randomNormal([1, 128, 128, 1]);
+                timings = {};
+
+                for (const modelName of models) {
+                    if (modelName in timings) continue;
+
+                    tf.engine().startScope()
+                    const modelUrl = 'iccv/' + modelName + '/model.json';
+                    console.log('Loading: ' + modelUrl);
+                    const model = await tf.loadGraphModel(modelUrl);
+
+                    // preload model
+                    await model.predict(x);
+
+                    const n = 100;
+                    let times = [];
+                    for (let i = 0; i < 5; ++i) {
+                        const time = await tf.time(() => {
+                            for (let i = 0; i < n; ++i) model.predict(x);
+                        });
+                        times.push(time);
+                    }
+                    tf.engine().endScope()
+
+                    console.log(times);
+
+                    timings[modelName] = times;
+
+                    const t = times.map(x => x.wallMs / n);
+                    const mean = getMean(t);
+                    const std = Math.sqrt(getMean(t.map(x => (x - mean) ** 2)));
+                    log.innerHTML += `<tr><td>${modelName}</td><td>${mean.toFixed(2)} &pm; ${std.toFixed(2)}</td>`;
+
+                    if (!running) {
+                        button.innerHTML = "Start";
+                        break;
+                    }
+                }
+
+                running = false;
+                button.innerHTML = "Start";
+            }
+        </script>
+    </head>
+    <body>
+        <button id="button" onclick="measureTimings()">Start</button>
+        <table id="log">
+            <tr><th>model</th><th>timing</th></tr>
+        </table>
+    </body>
+</html>
