@@ -1,3 +1,6 @@
 [submodule "expman"]
 	path = expman
 	url = https://github.com/fabiocarrara/expman
+[submodule "deeplab_models"]
+	path = models/deeplab
+	url = https://github.com/david8862/tf-keras-deeplabv3p-model-set
