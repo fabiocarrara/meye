@@ -25,7 +25,7 @@ from tqdm import tqdm
 from functools import partial
 
 from dataloader import get_loader, load_datasets
-from model import build_model
+from models.unet import build_model
 from utils import visualize
 from expman import Experiment
 
@@ -129,10 +129,10 @@ if __name__ == '__main__':
     parser.add_argument('-r', '--resolution', type=int, default=128, help='Input image resolution')
 
     # model params
-    parser.add_argument('--num-stages', type=int, default=4, help='number of down-up sample stages')
+    parser.add_argument('--num-stages', type=int, default=5, help='number of down-up sample stages')
     parser.add_argument('--num-conv', type=int, default=1, help='number of convolutions per stage')
     parser.add_argument('--num-filters', type=int, default=16, help='number of conv filter at first stage')
-    parser.add_argument('--grow-factor', type=float, default=1.0,
+    parser.add_argument('--grow-factor', type=float, default=1.5,
                         help='# filters at stage i = num-filters * grow-factor ** i')
     parser.add_argument('--up-activation', default='relu', choices=('relu', 'lrelu'),
                         help='activation in upsample stages')

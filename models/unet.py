@@ -81,3 +81,9 @@ def build_model(x_shape, y_shape, config):
     out_tags = L.Dense(2, activation='sigmoid', name='tags')(middle)
 
     return Model(inp, [out_mask, out_tags])
+
+
+if __name__ == '__main__':
+    shape = (128, 128, 1)
+    model = build_model(shape, shape, {'aspp': True})
+    model.summary()
