@@ -1,6 +1,5 @@
 import os
 import math
-import numpy as np
 import pandas as pd
 import tensorflow as tf
 import tensorflow_addons as tfa
@@ -30,8 +29,7 @@ def _get_pupil_position(pmap, datum, x_shape):
 
 
 @tf.function
-def load_datum(datum, x_shape=(128, 128, 1), augment=False, glint=False, sample_weights=False):
-    channels = 2 if glint else 1
+def load_datum(datum, x_shape=(128, 128, 1), augment=False):
 
     x = tf.io.read_file(datum['filename'])
     y = tf.io.read_file(datum['target'])
@@ -44,7 +42,7 @@ def load_datum(datum, x_shape=(128, 128, 1), augment=False, glint=False, sample_
     h, w = shape[0], shape[1]
     half_wh = tf.stack((w, h)) / 2
 
-    pupil_map = y[:, :, 0]
+    pupil_map = y[:, :, 0]  # R-channel is the pupil map
     pupil_area = tf.reduce_sum(pupil_map)
 
     pupil_pos_yx = _get_pupil_position(pupil_map, datum, x_shape)
@@ -104,9 +102,8 @@ def load_datum(datum, x_shape=(128, 128, 1), augment=False, glint=False, sample_
     y = tfa.image.transform(y, p, output_shape=(s, s))
 
     # compute how much pupil is left in the image
-    new_pupil_map = y[:, :, 0]  # > jpeg_thr
+    new_pupil_map = y[:, :, 0] 
     new_pupil_area = tf.reduce_sum(new_pupil_map)
-
     eye = (new_pupil_area / pupil_area) if pupil_area > 0 else 0.
 
     datum_eye = tf.cast(datum['eye'], 'float32')
@@ -131,25 +128,15 @@ def load_datum(datum, x_shape=(128, 128, 1), augment=False, glint=False, sample_
             x = tf.image.flip_up_down(x)
             y = tf.image.flip_up_down(y)
 
-        # random brightness, contrast, saturation
+        # random brightness, contrast
         contrast_factor = tf.random.normal([], mean=1.0, stddev=0.4)
-        # saturation_factor = tf.random.normal([], mean=1.0, stddev=0.4)
 
         x = tf.image.random_brightness(x, 0.2)
         x = tf.image.adjust_contrast(x, contrast_factor)
         x = tf.clip_by_value(x, 0, 1)
-        # x = tf.image.random_jpeg_quality(x, 50, 100)
-        # x = tf.image.adjust_saturation(x, saturation_factor)
 
-    y = y[:, :, :channels]
+    y = y[:, :, :1]
     y2 = tf.stack((datum_eye, datum_blink))
-
-    # 5x weight to blinks
-    if sample_weights:
-        sample_weight2 = 5. if (datum_blink == 1) else 1.
-        sample_weight = tf.fill(x_shape, sample_weight2, dtype='float32')
-        sample_weight2 = tf.constant(sample_weight2, dtype='float32')
-        return x, y, y2, sample_weight, sample_weight2
 
     return x, y, y2
 
@@ -170,10 +157,6 @@ def get_loader(dataframe, batch_size=8, shuffle=False, **kwargs):
     def _pack_targets(*ins):
         inputs = ins[0]
         targets = {'mask': ins[1], 'tags': ins[2]}
-        if len(ins) > 3:
-            sample_weight = {'mask': ins[3], 'tags': ins[4]}
-            return [inputs, targets, sample_weight]
-
         return [inputs, targets]
 
     dataset = dataset.map(_pack_targets, num_parallel_calls=tf.data.AUTOTUNE, deterministic=not shuffle)
@@ -195,11 +178,9 @@ def load_datasets(dataset_dirs):
 
 
 if __name__ == '__main__':
+    dataset = load_datasets(['NN_human_mouse_eyes'])
+    loader, categories = get_loader(dataset, batch_size=1, shiffle=False)
 
-    x = plt.imread('data/NN_fullframe/fullFrames/y-00B-1-0.jpeg')
-    y = plt.imread('data/NN_fullframe/pngs/y-00B-1-0.png')
-
-    x = np.stack([x, ] * 3, axis=2) / 255.
-    # plt.figure(figsize=(15, 15))
-    plt.imshow(.5 * x + .5 * y, cmap=plt.cm.gray)
-    plt.grid(False)
+    for x, y in loader:
+        print(x, y)
+        break

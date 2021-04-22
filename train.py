@@ -32,24 +32,10 @@ from expman import Experiment
 import evaluate
 
 
-def iou_coef(y_true, y_pred, smooth=0.001, thr=None):
-    y_pred = K.cast(y_pred > thr, 'float32') if thr is not None else y_pred
-    intersection = K.sum(K.abs(y_true * y_pred), axis=[1, 2, 3])
-    union = K.sum(y_true, [1, 2, 3]) + K.sum(y_pred, [1, 2, 3]) - intersection
-    iou = K.mean((intersection + smooth) / (union + smooth), axis=0)
-    return iou
-
-def dice_coef(y_true, y_pred, smooth=0.001, thr=None):
-    y_pred = K.cast(y_pred > thr, 'float32') if thr is not None else y_pred
-    intersection = K.sum(y_true * y_pred, axis=[1, 2, 3])
-    union = K.sum(y_true, axis=[1, 2, 3]) + K.sum(y_pred, axis=[1, 2, 3])
-    dice = K.mean((2. * intersection + smooth) / (union + smooth), axis=0)
-    return dice
-
-
 def main(args):
-    exp = Experiment(args, root='runs_subjects_iccv', ignore=('eval_only', 'epochs', 'resume'))
+    exp = Experiment(args, ignore=('epochs', 'resume'))
     print(exp)
+
     np.random.seed(args.seed)
     tf.random.set_seed(args.seed)
 
@@ -70,25 +56,25 @@ def main(args):
     lengths = map(len, (data, train_data, val_data, test_data))
     print("Total: {} - Train / Val / Test: {} / {} / {}".format(*lengths))
 
-    # target_size = (args.resolution, args.resolution)
     x_shape = (args.resolution, args.resolution, 1)
     y_shape = (args.resolution, args.resolution, 1)
 
     train_gen, _ = get_loader(train_data, batch_size=args.batch_size, shuffle=True, augment=True, x_shape=x_shape)
     val_gen, val_categories = get_loader(val_data, batch_size=args.batch_size, x_shape=x_shape)
-    test_gen, test_categories = get_loader(test_data, batch_size=1, x_shape=x_shape)
-
-    # train_gen, _ = get_loader(train_data, batch_size=args.batch_size, shuffle=True, augment=True, target_size=target_size)
-    # val_gen, val_categories = get_loader(val_data, batch_size=args.batch_size, target_size=target_size)
-    # test_gen, test_categories = get_loader(test_data, batch_size=1, target_size=target_size)
+    # test_gen, test_categories = get_loader(test_data, batch_size=1, x_shape=x_shape)
 
     log = exp.path_to('log.csv')
-    best_ckpt_path = exp.path_to('best_weights.h5')
-    best_mask_ckpt_path = exp.path_to('best_weights_mask.h5')
-    last_ckpt_path = exp.path_to('last_weights.h5')
+
+    # weights_only checkpoints
+    best_weights_path = exp.path_to('best_weights.h5')
+    best_mask_weights_path = exp.path_to('best_weights_mask.h5')
+
+    # whole model checkpoints
+    best_ckpt_path = exp.path_to('best_model.h5')
+    last_ckpt_path = exp.path_to('last_model.h5')
 
     if args.resume and os.path.exists(last_ckpt_path):
-        custom_objects={'AdaBeliefOptimizer': AdaBeliefOptimizer, 'iou_coef': iou_coef, 'dice_coef': dice_coef}
+        custom_objects={'AdaBeliefOptimizer': AdaBeliefOptimizer, 'iou_coef': evaluate.iou_coef, 'dice_coef': evaluate.dice_coef}
         model = tf.keras.models.load_model(last_ckpt_path, custom_objects=custom_objects)
         optimizer = model.optimizer
         initial_epoch = len(pd.read_csv(log))
@@ -100,25 +86,20 @@ def main(args):
 
     model.compile(optimizer=optimizer,
                   loss='binary_crossentropy',
-                  metrics={'mask': [iou_coef, dice_coef],
+                  metrics={'mask': [evaluate.iou_coef, evaluate.dice_coef],
                            'tags': 'binary_accuracy'})
 
-    make_eval = False
     model_stopped_file = exp.path_to('early_stopped.txt')
-    if not args.eval_only and not os.path.exists(model_stopped_file) and initial_epoch < args.epochs:
-        # the checkpointer automatically saves the model which gave the best metric value on the validation set
-        best_checkpointer = ModelCheckpoint(best_ckpt_path, monitor='val_loss', save_best_only=True, save_weights_only=True)
-        best_mask_checkpointer = ModelCheckpoint(best_ckpt_path, monitor='val_mask_dice_coef', mode='max', save_best_only=True, save_weights_only=True)
+    need_training = not os.path.exists(model_stopped_file) and initial_epoch < args.epochs
+    if need_training:
+        best_checkpointer = ModelCheckpoint(best_weights_path, monitor='val_loss', save_best_only=True, save_weights_only=True)
+        best_mask_checkpointer = ModelCheckpoint(best_mask_weights_path, monitor='val_mask_dice_coef', mode='max', save_best_only=True, save_weights_only=True)
         last_checkpointer = ModelCheckpoint(last_ckpt_path, save_best_only=False, save_weights_only=False)
         logger = CSVLogger(log, append=args.resume)
         progress = TqdmCallback(verbose=1, initial=initial_epoch, dynamic_ncols=True)
         early_stop = tf.keras.callbacks.EarlyStopping(monitor='val_mask_dice_coef', mode='max', patience=100)
-        
-        #tb_callback = tf.keras.callbacks.TensorBoard(log_dir='prova_log_dir',
-        #                                             profile_batch='50, 150')
 
-        # lr_scheduler = LearningRateScheduler(lambda epoch, lr: lr / (10 ** (epoch // 500)))
-        callbacks = [best_checkpointer, best_mask_checkpointer, last_checkpointer, logger, progress, early_stop] #, tb_callback] # , lr_scheduler]
+        callbacks = [best_checkpointer, best_mask_checkpointer, last_checkpointer, logger, progress, early_stop]
 
         model.fit(train_gen,
                   epochs=args.epochs,
@@ -130,39 +111,16 @@ def main(args):
                   verbose=False)
 
         if model.stop_training:
-            print('EARLY STOPPED!')
             open(model_stopped_file, 'w').close()
 
-        make_eval = True
-
-    # load best checkpoint
-    ckpt_path = best_mask_ckpt_path if os.path.exists(best_mask_ckpt_path) else best_ckpt_path
-    model.load_weights(ckpt_path)
-
-    # today = datetime.datetime.now().strftime('%Y-%m-%d')
-    best_model_path = 'meye-segmentation_' \
-                      'i{resolution}_' \
-                      's{num_stages}_' \
-                      'c{num_conv}_' \
-                      'f{num_filters}_' \
-                      'g{grow_factor}_' \
-                      'a-{up_activation}' \
-                      't-{conv_type}' \
-                      'p-{use_aspp}'  \
-                      '/'.format_map(vars(args))
-
-    best_model_path = exp.path_to(best_model_path)
-    if not os.path.exists(best_model_path):
-        tf.keras.models.save_model(model, best_model_path, include_optimizer=False)
+        tf.keras.models.save_model(model, best_ckpt_path, include_optimizer=False)
 
     # evaluation on test set
-    evaluate.evaluate(exp, force=make_eval)
-    exit()
+    evaluate.evaluate(exp, force=need_training)
 
 
 if __name__ == '__main__':
-    # default_data = ['data/2p-dataset', 'data/H-dataset', 'data/NN_fullframe_extended', 'data/NN_mixed_dataset']
-    default_data = ['data/NN_mixed_dataset_new']
+    default_data = ['data/NN_human_mouse_eyes']
 
     parser = argparse.ArgumentParser(description='')
     # data params
@@ -185,12 +143,9 @@ if __name__ == '__main__':
     # train params
     parser.add_argument('--lr', type=float, default=0.001, help='learning rate')
     parser.add_argument('-b', '--batch-size', type=int, default=32, help='Batch size')
-    parser.add_argument('-e', '--epochs', type=int, default=750, help='Number of training epochs')
+    parser.add_argument('-e', '--epochs', type=int, default=1500, help='Number of training epochs')
     parser.add_argument('-s', '--seed', type=int, default=23, help='Random seed')
     parser.add_argument('--resume', default=False, action='store_true', help='Resume training')
-
-    # other
-    parser.add_argument('--eval-only', default=False, action='store_true', help='Evaluate only')
 
     args = parser.parse_args()
     main(args)

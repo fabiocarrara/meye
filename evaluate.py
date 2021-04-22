@@ -3,11 +3,11 @@
 
 import argparse
 import os
-
 os.sys.path += ['expman']
+import expman
+
 import matplotlib
 matplotlib.use('Agg')
-
 import matplotlib.pyplot as plt
 
 import numpy as np
@@ -22,11 +22,24 @@ from glob import glob
 from tqdm import tqdm
 from PIL import Image
 
-import expman
-
 from dataloader import get_loader, load_datasets
 from utils import visualize, visualizable
-import train
+
+
+def iou_coef(y_true, y_pred, smooth=0.001, thr=None):
+    y_pred = K.cast(y_pred > thr, 'float32') if thr is not None else y_pred
+    intersection = K.sum(K.abs(y_true * y_pred), axis=[1, 2, 3])
+    union = K.sum(y_true, [1, 2, 3]) + K.sum(y_pred, [1, 2, 3]) - intersection
+    iou = K.mean((intersection + smooth) / (union + smooth), axis=0)
+    return iou
+
+
+def dice_coef(y_true, y_pred, smooth=0.001, thr=None):
+    y_pred = K.cast(y_pred > thr, 'float32') if thr is not None else y_pred
+    intersection = K.sum(y_true * y_pred, axis=[1, 2, 3])
+    union = K.sum(y_true, axis=[1, 2, 3]) + K.sum(y_pred, axis=[1, 2, 3])
+    dice = K.mean((2. * intersection + smooth) / (union + smooth), axis=0)
+    return dice
 
 
 def _filter_by_closeness(a, eps=10e-3):
@@ -96,30 +109,6 @@ def _weighted_roc_pr(y_true, y_scores, label, outdir, simplify=False):
     print(label, 'AuPR:', pr_auc, 'AvgP:', average_precision_score(y_true, y_scores, sample_weight=sample_weight))
 
 
-def _save_best_worst_samples(x_masks, ys, ps, losses, label, outdir, k=5, thr=0):
-    rank = losses.argsort()
-    topk, bottomk = rank[:k], rank[-k:]
-
-    y_masks, y_tags = ys
-    pred_masks, pred_tags = ps
-
-    for i, (x, ym, yt, pm, pt) in enumerate(
-            zip(x_masks[topk], y_masks[topk], y_tags[topk], pred_masks[topk], pred_tags[topk])):
-        combined_m = np.concatenate((pm, ym), axis=-1)[:, :, ::-1]
-        combined_t = np.concatenate((pt, yt), axis=-1)
-        combined_y = (combined_m[None, ...], combined_t[None, ...])
-        out = os.path.join(outdir, '{}_top{}_sample.png'.format(label, i))
-        visualize(x[None, ...], combined_y, out=out, thr=thr, n_cols=1, width=5)
-
-    for i, (x, ym, yt, pm, pt) in enumerate(
-            zip(x_masks[bottomk], y_masks[bottomk], y_tags[bottomk], pred_masks[bottomk], pred_tags[bottomk])):
-        combined_m = np.concatenate((pm, ym), axis=-1)[:, :, ::-1]
-        combined_t = np.concatenate((pt, yt), axis=-1)
-        combined_y = (combined_m[None, ...], combined_t[None, ...])
-        out = os.path.join(outdir, '{}_bottom{}_sample.png'.format(label, i))
-        visualize(x[None, ...], combined_y, out=out, thr=thr, n_cols=1, width=5)
-
-
 # https://github.com/tensorflow/tensorflow/issues/32809#issuecomment-768977280
 from tensorflow.python.framework.convert_to_constants import  convert_variables_to_constants_v2_as_graph
 def get_flops(model):
@@ -139,27 +128,17 @@ def get_flops(model):
 
 def evaluate(exp, force=False):
 
-    prediction_dir = exp.path_to('test_pred')
+    ckpt_path = exp.path_to('best_model.h5')
 
-    # best_model_path = glob(exp.path_to('meye-segmentation_*'))
-    # if not best_model_path:
-    #    print('Skipping: model still in train')
-    #    return
-
-    # best_model_path = best_model_path[0]
-    best_model_path = exp.path_to('best_weights_mask.h5')
-    ckpt_path = best_model_path if os.path.exists(best_model_path) else exp.path_to('last_weights.h5')
-
-    # get flops
-    custom_objects = {'AdaBeliefOptimizer': AdaBeliefOptimizer, 'iou_coef': train.iou_coef, 'dice_coef': train.dice_coef}
-    # custom_objects = {'iou_coef': iou_coef, 'dice_coef': dice_coef}
+    custom_objects = {'AdaBeliefOptimizer': AdaBeliefOptimizer, 'iou_coef': iou_coef, 'dice_coef': dice_coef}
     model = tf.keras.models.load_model(ckpt_path, custom_objects=custom_objects)
 
+    # get flops
     flop_params_path = exp.path_to('flops_nparams.csv')
     if force or not os.path.exists(flop_params_path):
         model.compile()
-        tf.keras.models.save_model(model, 'trash/tmp_model', overwrite=True, include_optimizer=False)
-        stripped_model = tf.keras.models.load_model('trash/tmp_model')
+        tf.keras.models.save_model(model, 'tmp_model', overwrite=True, include_optimizer=False)
+        stripped_model = tf.keras.models.load_model('tmp_model')
         flops = get_flops(stripped_model)
         nparams = stripped_model.count_params()
         del stripped_model
@@ -167,7 +146,7 @@ def evaluate(exp, force=False):
         print('#PARAMS:', nparams)
         pd.DataFrame({'flops': flops, 'nparams': nparams}, index=[0]).to_csv(flop_params_path)
 
-    model.compile(loss='binary_crossentropy', metrics={'mask': [train.iou_coef, train.dice_coef], 'tags': 'binary_accuracy'})
+    model.compile(loss='binary_crossentropy', metrics={'mask': [iou_coef, dice_coef], 'tags': 'binary_accuracy'})
 
     params = exp.params
     np.random.seed(params.seed)
@@ -187,10 +166,10 @@ def evaluate(exp, force=False):
         _, valtest_data = train_test_split(data, test_size=.3, shuffle=True)
         _, test_data = train_test_split(valtest_data, test_size=.33)
 
-    # print("Test Images: {}".format(len(test_data)))
     x_shape = (params.resolution, params.resolution, 1)
     test_gen, test_categories = get_loader(test_data, batch_size=1, x_shape=x_shape)
 
+    prediction_dir = exp.path_to('test_pred')
     os.makedirs(prediction_dir, exist_ok=True)
 
     loss_per_sample = None
@@ -228,8 +207,8 @@ def evaluate(exp, force=False):
             loss_per_sample, x_masks, y_masks, y_tags, pred_masks, pred_tags = _get_test_predictions(test_gen, model)
 
         thrs = np.linspace(0, 1, 101)
-        ious = [train.iou_coef(y_masks, pred_masks, thr=thr).numpy() for thr in thrs]
-        dices = [train.dice_coef(y_masks, pred_masks, thr=thr).numpy() for thr in thrs]
+        ious = [iou_coef(y_masks, pred_masks, thr=thr).numpy() for thr in thrs]
+        dices = [dice_coef(y_masks, pred_masks, thr=thr).numpy() for thr in thrs]
 
         best_thr = max(zip(dices, thrs))[1]
 
@@ -267,14 +246,10 @@ def evaluate(exp, force=False):
             _weighted_roc_pr(y_tags[selector, 0], pred_tags[selector, 0], '{}_eye'.format(cat), cat_outdir)
             _weighted_roc_pr(y_tags[selector, 1], pred_tags[selector, 1], '{}_blink'.format(cat), cat_outdir)
 
-            # cat_x = x_masks[selector]
-            # cat_y = (y_masks[selector], y_tags[selector])
-            # cat_p = (pred_masks[selector], pred_tags[selector])
-            cat_losses = loss_per_sample[selector, 1] # .sum(1)
-            # _save_best_worst_samples(cat_x, cat_y, cat_p, cat_losses, cat, cat_outdir, k=5, thr=best_thr)
-
+            cat_losses = loss_per_sample[selector, 1]
             rank = cat_losses.argsort()
             topk, bottomk = rank[:k], rank[-k:]
+
             best_selector += idx[selector][topk].tolist()
             worst_selector += idx[selector][bottomk].tolist()
             random_selector += np.random.choice(idx[selector], k, replace=False).tolist()

@@ -15,7 +15,7 @@ def main(args):
     fps = video.get_meta_data()['fps']
     frame_w, frame_h = video.get_meta_data()['size']
 
-    model = load_model(args.model)
+    model = load_model(args.model, compile=False)
     input_shape = model.input.shape[1:3]
 
     # default RoI

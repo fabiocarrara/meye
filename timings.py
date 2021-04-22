@@ -9,7 +9,7 @@ from tqdm import trange
 
 def main(args):
 
-    model = load_model(args.model)
+    model = load_model(args.model, compile=False)
     data = np.empty((1, args.rh, args.rw, 1), dtype=np.float32)
 
     start = time.time()

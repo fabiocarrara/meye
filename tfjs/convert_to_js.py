@@ -11,7 +11,7 @@ import expman
 def main(args):
 
     variants = (
-        (''     , ['--input_format', 'keras', '--output_format', 'tfjs_graph_model']),
+        (''     , []),
         # ('_qf16', ['--quantize_float16', '*']),
         # ('_qu16', ['--quantize_uint16' , '*']),
         # ('_qu8' , ['--quantize_uint8'  , '*']),
@@ -21,22 +21,23 @@ def main(args):
 
     exps = expman.gather(args.run).filter(args.filter)
     for exp_name, exp in tqdm(exps.items()):
-        # ckpt = glob(exp.path_to('meye-segmentation*'))[0]
-        ckpt = exp.path_to('best_weights_mask.h5')
-        ckpt = ckpt if os.path.exists(ckpt) else exp.path_to('last_weights.h5')
+        ckpt = exp.path_to('best_model.h5')
+        ckpt = ckpt if os.path.exists(ckpt) else exp.path_to('last_model.h5')
 
         for prefix, extra_args in variants:
             name = exp_name + prefix
             out = os.path.join(args.output, name)
             if args.force or not os.path.exists(out):
                 os.makedirs(out, exist_ok=True)
-                cmd = ['tensorflowjs_converter',] + extra_args + [ckpt, out]
+                cmd = ['tensorflowjs_converter',
+                        '--input_format', 'keras',
+                        '--output_format', 'tfjs_graph_model'] + extra_args + [ckpt, out]
                 subprocess.call(cmd)
 
             converted_models.append(name)
 
     js_filename = os.path.join(args.output, 'models.js')
-    js_output = 'models = ' + json.dumps(converted_models);
+    js_output = 'models = ' + json.dumps(converted_models)
     with open(js_filename, 'w') as f:
         f.write(js_output)
 
