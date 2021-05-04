@@ -25,7 +25,7 @@ from tqdm import tqdm
 from functools import partial
 
 from dataloader import get_loader, load_datasets
-from models.deeplab_resnet50 import build_model
+from models.deeplab import build_model, AVAILABLE_BACKBONES
 from utils import visualize
 from expman import Experiment
 
@@ -127,6 +127,9 @@ if __name__ == '__main__':
     parser.add_argument('-d', '--data', nargs='+', default=default_data, help='Data directory (may be multiple)')
     parser.add_argument('--split', default='random', choices=('random', 'subjects'), help='How to split data')
     parser.add_argument('-r', '--resolution', type=int, default=128, help='Input image resolution')
+
+    # model params
+    parser.add_argument('-a', '--backbone', default='resnet50', choices=AVAILABLE_BACKBONES, help='Backbone architecture')
 
     # train params
     parser.add_argument('--lr', type=float, default=0.001, help='learning rate')
