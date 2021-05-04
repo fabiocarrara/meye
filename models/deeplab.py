@@ -8,7 +8,12 @@ from tensorflow.keras import layers as L
 from tensorflow.keras.models import Model, Sequential
 
 from deeplabv3p.models.deeplabv3p_resnet50 import Deeplabv3pResNet50
+from deeplabv3p.models.deeplabv3p_mobilenetv3 import Deeplabv3pLiteMobileNetV3Small
 
+AVAILABLE_BACKBONES = {
+    'resnet50': Deeplabv3pResNet50,
+    'lite-mobilenetv3-small': Deeplabv3pLiteMobileNetV3Small
+}
 
 def build_model(input_shape, output_shape, config):
 
@@ -19,7 +24,8 @@ def build_model(input_shape, output_shape, config):
     needs_rgb_conversion = input_shape[2] != 3
     backbone_input_shape = (input_shape[:2] + (3,)) if needs_rgb_conversion else input_shape
     weights = config.get('weights', 'imagenet')
-    backbone, backbone_len = Deeplabv3pResNet50(input_shape=backbone_input_shape, num_classes=num_classes, weights=weights, OS=8)
+    backbone_fn = AVAILABLE_BACKBONES[config.get('backbone', 'resnet50')]
+    backbone, backbone_len = backbone_fn(input_shape=backbone_input_shape, num_classes=num_classes, weights=weights, OS=8)
 
     # segmentation mask
     out_mask = backbone.get_layer('pred_resize').output
@@ -47,6 +53,6 @@ def build_model(input_shape, output_shape, config):
 
 if __name__ == "__main__":
     shape = (128, 128, 1)
-    model = build_model(shape, shape, {'weights': None})
+    model = build_model(shape, shape, {'weights': None})#, 'backbone': 'lite-mobilenetv3-small'})
     model.summary()
     import pdb; pdb.set_trace()
