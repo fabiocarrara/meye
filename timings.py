@@ -28,6 +28,9 @@ def main(args):
     model = tf.keras.models.load_model(model_path, compile=False, custom_objects={'tf': tf})
     data = np.empty((1, args.rh, args.rw, 1), dtype=np.float32)
 
+    # warm-up
+    model.predict(data)
+
     start = time.time()
     for _ in trange(args.n):
         model.predict(data)
