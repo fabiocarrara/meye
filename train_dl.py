@@ -4,7 +4,7 @@
 import argparse
 import os
 
-os.sys.path += ['expman']
+os.sys.path += ['expman', 'models/deeplab']
 import matplotlib
 matplotlib.use('Agg')
 
@@ -25,6 +25,7 @@ from tqdm import tqdm
 from functools import partial
 
 from dataloader import get_loader, load_datasets
+from deeplabv3p.models.deeplabv3p_mobilenetv3 import hard_swish
 from models.deeplab import build_model, AVAILABLE_BACKBONES
 from utils import visualize
 from expman import Experiment
@@ -74,7 +75,7 @@ def main(args):
     last_ckpt_path = exp.path_to('last_model.h5')
 
     if args.resume and os.path.exists(last_ckpt_path):
-        custom_objects={'AdaBeliefOptimizer': AdaBeliefOptimizer, 'iou_coef': evaluate.iou_coef, 'dice_coef': evaluate.dice_coef}
+        custom_objects={'AdaBeliefOptimizer': AdaBeliefOptimizer, 'iou_coef': evaluate.iou_coef, 'dice_coef': evaluate.dice_coef, 'hard_swish': hard_swish}
         model = tf.keras.models.load_model(last_ckpt_path, custom_objects=custom_objects)
         optimizer = model.optimizer
         initial_epoch = len(pd.read_csv(log))
