@@ -3,7 +3,7 @@
 
 import argparse
 import os
-os.sys.path += ['expman']
+os.sys.path += ['expman', 'models/deeplab']
 import expman
 
 import matplotlib
@@ -22,6 +22,7 @@ from glob import glob
 from tqdm import tqdm
 from PIL import Image
 
+from deeplabv3p.models.deeplabv3p_mobilenetv3 import hard_swish
 from dataloader import get_loader, load_datasets
 from utils import visualize, visualizable
 
@@ -130,7 +131,7 @@ def evaluate(exp, force=False):
 
     ckpt_path = exp.path_to('best_model.h5')
 
-    custom_objects = {'AdaBeliefOptimizer': AdaBeliefOptimizer, 'iou_coef': iou_coef, 'dice_coef': dice_coef}
+    custom_objects = {'AdaBeliefOptimizer': AdaBeliefOptimizer, 'iou_coef': iou_coef, 'dice_coef': dice_coef, 'hard_swish': hard_swish}
     model = tf.keras.models.load_model(ckpt_path, custom_objects=custom_objects)
 
     # get flops
