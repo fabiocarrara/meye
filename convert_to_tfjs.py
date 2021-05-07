@@ -21,8 +21,9 @@ def main(args):
 
     exps = expman.gather(args.run).filter(args.filter)
     for exp_name, exp in tqdm(exps.items()):
-        ckpt = exp.path_to('best_model.h5')
-        ckpt = ckpt if os.path.exists(ckpt) else exp.path_to('last_model.h5')
+        # ckpt = exp.path_to('best_model.h5')
+        # ckpt = ckpt if os.path.exists(ckpt) else exp.path_to('last_model.h5')
+        ckpt = exp.path_to('best_savedmodel/')
 
         for suffix, extra_args in variants:
             name = exp_name + suffix
@@ -31,7 +32,7 @@ def main(args):
             if args.force or not os.path.exists(out):
                 os.makedirs(out, exist_ok=True)
                 cmd = ['tensorflowjs_converter',
-                        '--input_format', 'keras',
+                        '--input_format', 'tf_saved_model',
                         '--output_format', 'tfjs_graph_model'] + extra_args + [ckpt, out]
                 subprocess.call(cmd)
 
