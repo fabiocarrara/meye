@@ -14,6 +14,7 @@ import math
 import numpy as np
 import pandas as pd
 import tensorflow as tf
+import tensorflowjs as tfjs
 from tensorflow.keras import backend as K
 from tensorflow.keras.models import load_model
 from tensorflow.keras.callbacks import ModelCheckpoint, LearningRateScheduler, CSVLogger
@@ -117,6 +118,15 @@ def main(args):
 
     # evaluation on test set
     evaluate.evaluate(exp, force=need_training)
+
+    # save best snapshot in SavedModel format
+    model.load_weights(best_mask_weights_path)
+    best_savedmodel_path = exp.path_to('best_savedmodel')
+    model.save(best_savedmodel_path, save_traces=True)
+
+    # export to tfjs (Layers model)
+    tfjs_model_dir = exp.path_to('tfjs')
+    tfjs.converters.save_keras_model(model, tfjs_model_dir)
 
 
 if __name__ == '__main__':
