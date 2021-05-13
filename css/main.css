@@ -124,29 +124,38 @@ input[type=number] {
     align-items: center;
 }
 
-#pre-post-params {
+#processing {
+    display: flex;
+    flex-flow: row nowrap;
+}
+
+.pre-post-params {
     display: flex;
     flex-flow: column nowrap;
 }
 
-#pre-post-params fieldset {
+.pre-post-params fieldset {
     display: flex;
     flex-direction: column;
     width: 200px;
 }
 
-#pre-post-params label {
+.pre-post-params label {
     display: inline-flex;
     justify-content: space-between;
 }
 
-#pre-post-params input[type=number] {
+.pre-post-params input[type=number] {
     margin: 5px 0 5px 10px;
 }
 
-#pre-post-params input[type=checkbox] {
+.pre-post-params input[type=checkbox] {
     margin: auto 0;
     width: 65px;
+}
+
+#net-input {
+    width: 100%;
 }
 
 #triggers-params {
@@ -160,7 +169,10 @@ input[type=number] {
     margin: 2px;
 }
 
-#control-thr {
+#control-thr,
+#control-contrast,
+#control-brightness,
+#control-gamma {
     width: 100%;
 }
 

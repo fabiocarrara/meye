@@ -53,8 +53,13 @@
         </fieldset>
     </section>
 
-    <section>
-        <aside id="pre-post-params">
+    <section id="processing">
+        <aside class="pre-post-params">
+            <fieldset id="roi-preview">
+                <legend>INPUT PREVIEW</legend>
+                <canvas id="net-input" width="128" height="128"></canvas>
+            </fieldset>
+
             <fieldset id="roi-params">
                 <legend>ROI</legend>
                 <label for="roi-left" title="X-coordinate of top left corner of the ROI">X:<input type="number" min="0" id="roi-left"></label>
@@ -63,6 +68,40 @@
                 <label for="roi-track" title="Whether to move the ROI to track the pupil center">Track Pupil:<input type="checkbox" id="roi-track" checked></label>
             </fieldset>
 
+            <fieldset id="preproc-params">
+                <legend>Preprocess</legend>
+                <label for="control-contrast-preview" title="Adjust image contrast">Contrast: <input type="number" min="0" max="2" step="0.01" value="1.00" id="control-contrast-preview"></label>
+                <label><input type="range" min="0" max="100" id="control-contrast"></label>
+                <label for="control-brightness-preview" title="Adjust image brightness">Brightness: <input type="number" min="-1" max="1" step="0.01" value="0.00" id="control-brightness-preview"></label>
+                <label><input type="range" min="0" max="100" id="control-brightness"></label>
+                <label for="control-gamma-preview" title="Adjust image Gamma">Gamma: <input type="number" min="0" max="2" step="0.01" value="1.00" id="control-gamma-preview"></label>
+                <label><input type="range" min="0" max="100" id="control-gamma"></label>
+                <label for="control-invert">Invert: <input type="checkbox" id="control-invert"></label>
+                <input type="reset" value="Reset" id="control-preproc-reset">
+            </fieldset>
+        </aside>
+
+        <fieldset id="video-params">
+            <legend>
+                <div class="flex-legend">
+                    Output
+                    <label><meter id="fps-meter" min=0 value=24 max=30></meter> FPS: <span id="fps-preview"></span></label>
+                    <label id="backend-preview">(Backend: <span id="backend-text"></span>)</label>
+                </div>
+            </legend>
+            <div id="preview">
+                <div id="roi">
+                    <div draggable="true" id="roi-dragger"></div>
+                    <div draggable="true" id="roi-resizer"></div>
+                    <canvas id="output"></canvas>
+                </div>
+                <div id="pupil-x"><span>x=13.0</span></div>
+                <div id="pupil-y"><span>y=24.1</span></div>
+                <video id="webcam" controls="1"></video>
+            </div>
+        </fieldset>
+
+        <aside class="pre-post-params">
             <fieldset id="filter-params">
                 <legend>Prediction</legend>
                 <label for="control-period" title="Time to wait between predictions (0 = fastest possible)">Period (ms): <input type="number" min="0" value=0 id="control-period"></label>
@@ -84,25 +123,6 @@
                 <label for="control-clear-on-resume">Clear on Resume: <input type="checkbox" id="control-clear-on-resume" checked></label>
             </fieldset>
         </aside>
-        <fieldset id="video-params">
-            <legend>
-                <div class="flex-legend">
-                    Output
-                    <label><meter id="fps-meter" min=0 value=24 max=30></meter> FPS: <span id="fps-preview"></span></label>
-                    <label id="backend-preview">(Backend: <span id="backend-text"></span>)</label>
-                </div>
-            </legend>
-            <div id="preview">
-                <div id="roi">
-                    <div draggable="true" id="roi-dragger"></div>
-                    <div draggable="true" id="roi-resizer"></div>
-                    <canvas id="output"></canvas>
-                </div>
-                <div id="pupil-x"><span>x=13.0</span></div>
-                <div id="pupil-y"><span>y=24.1</span></div>
-                <video id="webcam" controls="1"></video>
-            </div>
-        </fieldset>
     </section>
 
     <section id="outputs">
@@ -153,7 +173,6 @@
                 </table>
             </div>
         </fieldset>
-
     </section>
     <div id="loading"><span>Loading model...</span></div>
     <!-- Import TensorFlow.js library -->

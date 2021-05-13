@@ -4,6 +4,7 @@ const webcamButton = document.getElementById('webcamButton');
 const fileInput = document.getElementById('file-input');
 const inputError = document.getElementById('input-error');
 const video = document.getElementById('webcam');
+const input = document.getElementById('net-input');
 const output = document.getElementById('output');
 const traceContainer = document.getElementById('sticky-header');
 const trace = document.getElementById('trace-data');
@@ -438,6 +439,10 @@ loadModel().then(() => {
     demoButtons[0].dispatchEvent(new Event('click'));
 });
 
+var contrastFactor = 1;
+var brightnessFactor = 0;
+var gammaFactor = 1;
+
 var period = 0;
 var timeoutHandler = null;
 var threshold = 0.5;
@@ -454,17 +459,30 @@ function predictFrame() {
     let s = parseInt(rs.value);
 
     // Now let's start classifying a frame in the stream.
-    const frame = tf.browser.fromPixels(video, 3)
+    let frame = tf.browser.fromPixels(video, 3)
         .slice([y, x], [s, s])
         .resizeBilinear([128, 128])
-        .mul(rgb).sum(2)
-        .expandDims(0).expandDims(-1)
-        .toFloat().div(_255);
+        .mul(rgb).sum(2);
+    
+    if (contrastFactor != 1) {
+        const mean = frame.mean()
+        frame = frame.sub(mean).mul(tf.scalar(contrastFactor)).add(mean);
+    }
+    if (brightnessFactor != 0) frame = frame.add(tf.scalar(brightnessFactor).mul(_255));
+    if (gammaFactor != 1)  frame = frame.pow(tf.scalar(gammaFactor));
 
-    let [maps, eb] = model.predict(frame);
+    frame = frame.clipByValue(0, 255);
+
+    if (controlInvert.checked) frame = _255.sub(frame);
+    
+    frame = frame.div(_255);
+
+    tf.browser.toPixels(frame, input);
+
+    let [maps, eb] = model.predict(frame.expandDims(0).expandDims(-1));
 
     // some older models have their output order swapped
-    if (maps.rank < 4)[maps, eb] = [eb, maps];
+    if (maps.rank < 4) [maps, eb] = [eb, maps];
 
     // let [pupil, glint] = maps.squeeze().split(2, 2);
     // take first channel in last dimension
@@ -735,6 +753,16 @@ video.addEventListener('seeked', predictOnce);
  * CONTROLS
  **************/
 
+const controlContrast = document.getElementById('control-contrast');
+const controlContrastPreview = document.getElementById('control-contrast-preview');
+const controlBrightness = document.getElementById('control-brightness');
+const controlBrightnessPreview = document.getElementById('control-brightness-preview');
+const controlGamma = document.getElementById('control-gamma');
+const controlGammaPreview = document.getElementById('control-gamma-preview');
+
+const controlInvert = document.getElementById('control-invert');
+const controlPreprocReset = document.getElementById('control-preproc-reset');
+
 const controlPeriod = document.getElementById('control-period');
 const controlThreshold = document.getElementById('control-thr');
 const controlThresholdPreview = document.getElementById('control-thr-preview');
@@ -754,6 +782,9 @@ const controlExportCsv = document.getElementById('control-export-csv');
 const controlClear = document.getElementById('control-clear');
 
 function clearPreview() {
+    ctx = input.getContext("2d");
+    ctx.clearRect(0, 0, input.width, input.height);
+
     ctx = output.getContext("2d");
     ctx.clearRect(0, 0, output.width, output.height);
 }
@@ -766,6 +797,54 @@ function clearData() {
     chart = null;
     // video.pause();
     // video.currentTime = 0;
+}
+
+function setContrast(event) {
+    if (event.target == controlContrast) {
+        contrastFactor = event.target.value / 50;  // [0, 100] -> [0, 2]
+        controlContrastPreview.value = contrastFactor.toFixed(2);
+    } else if (event.target == controlContrastPreview) {
+        contrastFactor = parseFloat(event.target.value);
+        controlContrast.value = contrastFactor * 50;  // [0, 2] -> [0, 100]
+    } else return;
+
+    updatePrediction(5);
+}
+
+function setBrightness(event) {
+    if (event.target == controlBrightness) {
+        brightnessFactor = (event.target.value - 50) / 50;  // [0, 100] -> [-1, 1]
+        controlBrightnessPreview.value = brightnessFactor.toFixed(2);
+    } else if (event.target == controlBrightnessPreview) {
+        brightnessFactor = parseFloat(event.target.value);
+        controlBrightness.value = (brightnessFactor * 50) + 50;  // [-1, 1] -> [0, 100]
+    } else return;
+
+    updatePrediction(5);
+}
+
+function setGamma(event) {
+    if (event.target == controlGamma) {
+        gammaFactor = event.target.value / 50;  // [0, 100] -> [0, 2]
+        controlGammaPreview.value = gammaFactor.toFixed(2);
+    } else if (event.target == controlGammaPreview) {
+        gammaFactor = parseFloat(event.target.value);
+        controlGamma.value = gammaFactor * 50;  // [0, 2] -> [0, 100]
+    } else return;
+
+    updatePrediction(5);
+}
+
+function resetPreproc(event) {
+    controlContrastPreview.value = "1.00";
+    controlBrightnessPreview.value = "0.00";
+    controlGammaPreview.value = "1.00";
+    controlInvert.checked = false;
+
+    controlContrastPreview.dispatchEvent(new Event('input'));
+    controlBrightnessPreview.dispatchEvent(new Event('input'));
+    controlGammaPreview.dispatchEvent(new Event('input'));
+    controlInvert.dispatchEvent(new Event('change'));
 }
 
 function setThreshold(event) {
@@ -784,9 +863,18 @@ function setPeriod(event) {
     period = event.target.value;
 }
 
+controlContrastPreview.addEventListener('input', setContrast);
+controlContrast.addEventListener('input', setContrast);
+controlBrightnessPreview.addEventListener('input', setBrightness);
+controlBrightness.addEventListener('input', setBrightness);
+controlGammaPreview.addEventListener('input', setGamma);
+controlGamma.addEventListener('input', setGamma);
+controlInvert.addEventListener('change', () => { updatePrediction(5); });
+controlPreprocReset.addEventListener('click', resetPreproc);
 controlPeriod.addEventListener('change', setPeriod);
 controlThresholdPreview.addEventListener('input', setThreshold);
 controlThreshold.addEventListener('input', setThreshold);
+controlMorphology.addEventListener('change', () => { updatePrediction(5); });
 
 /***************
  * CHART & TABLE
