@@ -41,10 +41,14 @@ def main(args):
     fps = args.n / elapsed
     print(f'Total: {elapsed:g}s ({throughput * 1000} ms/img, {fps} fps)')
 
-    if is_run_dir:
+    timings = pd.Series({'elapsed': elapsed, 'throughput': throughput, 'fps': fps})
+
+    if is_run_dir and not args.output:
         timings_path = exp.path_to('timings.csv')
-        timings = pd.Series({'elapsed': elapsed, 'throughput': throughput, 'fps': fps})
         timings.to_csv(timings_path)
+
+    if args.output:
+        timings.to_csv(args.output)
 
 
 if __name__ == '__main__':
@@ -53,6 +57,7 @@ if __name__ == '__main__':
     parser.add_argument('-n', type=int, default=100, help='number of predictions')
     parser.add_argument('-rh', type=int, default=128, help='RoI height (-1 for full height)')
     parser.add_argument('-rw', type=int, default=128, help='RoI width (-1 for full width)')
+    parser.add_argument('-o', '--output', help='CSV output file')
 
     args = parser.parse_args()
     main(args)
