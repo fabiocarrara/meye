@@ -20,7 +20,7 @@ fileInput.addEventListener('change', function (event) {
     var file = this.files[0];
     if (!video.canPlayType(file.type)) {
         console.log('cannot play ' + file.type);
-        inputError.innerHTML = 'The selected file type (' + file.type + ') cannot be played by your browser. Try transcoding it to a <a href="https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Video_codecs">commonly used web codec</a>.';
+        inputError.innerHTML = 'The selected file type (' + file.type + ') cannot be played by your browser.<br>Try transcoding it to a <a href="https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Video_codecs" target="_blank">commonly used web codec</a>, e.g., using an <a href="https://www.freeconvert.com/avi-to-mp4" target="_blank">online video converter</a>.';
         inputError.classList.remove('hide');
         return false;
     }

@@ -30,16 +30,15 @@ body {
 header {
     margin: 5px;
     display: flex;
-    flex-flow: row nowrap;
-    align-items: flex-end;
-    margin-bottom: 10px;
+    flex-direction: column;
+    justify-content: center;
+    background-color: #187ec5;
 }
 
 #logo {
     box-sizing: border-box;
     width: 224px;
-    padding: 12px 16px;
-    background-color: #187ec5;
+    padding: 11px 16px;
 }
 
 h1 {
@@ -49,26 +48,31 @@ h1 {
     padding-bottom: 4px;
 }
 
-header span {
-    font-weight: bold;
-    font-size: 1.2em;
-    padding-bottom: .25em;
+#links ul {
+    padding-left: 7px;
+    list-style: none;
+    margin: 3px 0;
 }
 
-#manual-link,
-#manual-link:visited {
+#links li {
+    font-size: .9em;
+}
+
+#links a,
+#links a:visited {
     color: black;
     text-decoration: none;
+    line-height: 20px;
 }
 
-#manual-link:hover {
+#links a:hover {
     text-decoration: underline;
 }
 
-#manual-link img {
-    height: 30px;
-    vertical-align: bottom;
-    padding-left: 5px;
+#links a img {
+    height: 20px;
+    vertical-align: middle;
+    padding-right: 6px;
 }
 
 section {
@@ -81,19 +85,22 @@ fieldset {
     border: none;
     background-color: #eee;
     margin: 5px;
-    line-height: 2em;
+    line-height: 1.6em;
 }
 
 fieldset legend {
+    font-size: 0.9em;
     background-color: gainsboro;
     text-transform: uppercase;
     padding: 0px 10px;
 }
 
 #input-error {
+    padding-top: 5px;
     display: block;
     color: red;
     font-size: small;
+    line-height: 1.2em;
 }
 
 .hide {
@@ -105,23 +112,48 @@ input[type=number] {
     width: 60px;
 }
 
-#capture-params,
 #model-params,
 #video-params,
 #controls fieldset {
     flex-grow: 2;
 }
 
+#capture-params {
+    display: flex;
+    align-items: center;
+}
+
 #capture-params input {
     margin-left: 5px;
-    margin-right: 50px;
+    margin-right: 20px;
 }
 
 #demo-params {
+    position: relative;
     width: 200px;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    /* Start the shake animation and make the animation last for 0.5 seconds */
+    animation: glowing 1s, shake 0.25s;
+    animation-delay: 5s, 5.25s;
+  
+    /* When the animation is finished, start again */
+    animation-iteration-count: 1, 2;
+}
+  
+@keyframes shake {
+      0% { transform: rotate( 0deg); }
+     25% { transform: rotate(-2deg); }
+     75% { transform: rotate( 2deg); }
+    100% { transform: rotate( 0deg); }
+}
+
+@keyframes glowing {
+      0% { box-shadow: 0 0 0px darkgray; bottom: 0px; left: 0px; }
+     25% { box-shadow: -3px 3px 3px darkgray; bottom: 3px; left: 3px; background-color: #187ec5; }
+     75% { box-shadow: -3px 3px 3px darkgray; bottom: 3px; left: 3px; background-color: #187ec5; }
+    100% { box-shadow: 0 0 0px darkgray; bottom: 0px; left: 0px;}
 }
 
 #processing {
@@ -143,15 +175,21 @@ input[type=number] {
 .pre-post-params label {
     display: inline-flex;
     justify-content: space-between;
-}
-
-.pre-post-params input[type=number] {
-    margin: 5px 0 5px 10px;
+    align-items: center;
 }
 
 .pre-post-params input[type=checkbox] {
     margin: auto 0;
     width: 65px;
+}
+
+#roi-coords {
+    display: flex;
+    justify-content: space-between;
+}
+
+#roi-coords label {
+    width: 48%;
 }
 
 #net-input {
@@ -174,6 +212,10 @@ input[type=number] {
 #control-brightness,
 #control-gamma {
     width: 100%;
+}
+
+#control-preproc-reset {
+    margin-top: 5px;
 }
 
 #video-params legend {
@@ -365,12 +407,19 @@ video {
 .out legend label {
     margin-left: 30px;
     text-transform: none;
+    vertical-align: middle;
 }
 
 .out legend span {
     font-size: 0.8em;
     flex-grow: 1;
     text-align: right;
+}
+
+.out legend input[type="checkbox"] {
+    margin-top: 0;
+    margin-bottom: 3px;
+    vertical-align: middle;
 }
 
 #out-graph {

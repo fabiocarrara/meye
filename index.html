@@ -25,23 +25,17 @@
 </head>
 
 <body>
-    <header>
-        <img id="logo" src="img/logo_transparent.png">
-        <h1>Pupillometry</h1>
-        <span><a id="manual-link" target="_blank" href="https://github.com/fabiocarrara/meye/wiki">Manual<img src="img/baseline_menu_book_black_36dp.png"></a></span>
-    </header>
-
     <section id="input-params">
-        <fieldset id="demo-params">
-            <legend>Demos</legend>
-            <input type="button" value="Human" class="demo-button" data-src="demo/h_f.mp4" data-rx="140" data-ry="60" data-rs="342" data-rt="1" data-period="0" data-thr="0.25" data-morph="0">
-            <input type="button" value="Mouse" class="demo-button" data-src="demo/hf_mouse.mp4" data-rx="80" data-ry="80" data-rs="90" data-rt="0" data-period="0" data-thr="0.15" data-morph="1">
-            <input type="button" value="2P Mouse" class="demo-button" data-src="demo/2p_mouse.mp4" data-rx="100" data-ry="100" data-rs="90" data-rt="0" data-period="0" data-thr="0.5" data-morph="1">
-        </fieldset>
+        <header>
+            <img id="logo" alt="MEye Pupillometry Logo" src="img/logo_transparent.png">
+        </header>
         <fieldset id="capture-params">
-            <legend>Input</legend>
-            <label for="file-input">Video File:</label><input type="file" accept="video/*" id="file-input">
-            <label for="webcamButton">or: </label><input type="button" id="webcamButton" value="Enable Webcam">
+            <legend>Input (Camera)</legend>
+            <input type="button" id="webcamButton" value="Enable Webcam">
+        </fieldset>
+        <fieldset id="video-file-params">
+            <legend>Input (File)</legend>
+            <label for="file-input"></label><input type="file" accept="video/*" id="file-input">
             <span id="input-error"></span>
         </fieldset>
         <fieldset id="model-params">
@@ -50,6 +44,12 @@
                 <option>meye-segmentation_i128_s4_c1_f16_g1_a-relu-no-subj</option>
                 <option>meye-segmentation_i128_s4_c1_f16_g1_a-relu</option>
             </select>
+        </fieldset>
+        <fieldset id="demo-params">
+            <legend>Demos</legend>
+            <input type="button" value="Human" class="demo-button" data-src="demo/h_f.mp4" data-rx="140" data-ry="60" data-rs="342" data-rt="1" data-period="0" data-thr="0.25" data-morph="0">
+            <input type="button" value="Mouse" class="demo-button" data-src="demo/hf_mouse.mp4" data-rx="80" data-ry="80" data-rs="90" data-rt="0" data-period="0" data-thr="0.15" data-morph="1">
+            <input type="button" value="2P Mouse" class="demo-button" data-src="demo/2p_mouse.mp4" data-rx="100" data-ry="100" data-rs="90" data-rt="0" data-period="0" data-thr="0.5" data-morph="1">
         </fieldset>
     </section>
 
@@ -62,8 +62,10 @@
 
             <fieldset id="roi-params">
                 <legend>ROI</legend>
-                <label for="roi-left" title="X-coordinate of top left corner of the ROI">X:<input type="number" min="0" id="roi-left"></label>
-                <label for="roi-top" title="Y-coordinate of top left corner of the ROI">Y:<input type="number" min="0" id="roi-top"></label>
+                <div id="roi-coords">
+                    <label for="roi-left" title="X-coordinate of top left corner of the ROI">X:<input type="number" min="0" id="roi-left"></label>
+                    <label for="roi-top" title="Y-coordinate of top left corner of the ROI">Y:<input type="number" min="0" id="roi-top"></label>
+                </div>
                 <label for="roi-size" title="Length of the side of the squared ROI">Size:<input type="number" min="0" id="roi-size"></label>
                 <label for="roi-track" title="Whether to move the ROI to track the pupil center">Track Pupil:<input type="checkbox" id="roi-track" checked></label>
             </fieldset>
@@ -76,7 +78,7 @@
                 <label><input type="range" min="0" max="100" id="control-brightness"></label>
                 <label for="control-gamma-preview" title="Adjust image Gamma">Gamma: <input type="number" min="0" max="2" step="0.01" value="1.00" id="control-gamma-preview"></label>
                 <label><input type="range" min="0" max="100" id="control-gamma"></label>
-                <label for="control-invert">Invert: <input type="checkbox" id="control-invert"></label>
+                <label for="control-invert" title="Invert image">Invert: <input type="checkbox" id="control-invert"></label>
                 <input type="reset" value="Reset" id="control-preproc-reset">
             </fieldset>
         </aside>
@@ -85,7 +87,7 @@
             <legend>
                 <div class="flex-legend">
                     Output
-                    <label><meter id="fps-meter" min=0 value=24 max=30></meter> FPS: <span id="fps-preview"></span></label>
+                    <label><meter id="fps-meter" min=0 low=8 optimum=24 max=30></meter> FPS: <span id="fps-preview"></span></label>
                     <label id="backend-preview">(Backend: <span id="backend-text"></span>)</label>
                 </div>
             </legend>
@@ -107,7 +109,7 @@
                 <label for="control-period" title="Time to wait between predictions (0 = fastest possible)">Period (ms): <input type="number" min="0" value=0 id="control-period"></label>
                 <label for="control-thr-preview" title="Pupil probability map threshold">Threshold: <input type="number" min="0" max="1" step="0.01" value="0.50" id="control-thr-preview"></label>
                 <label><input type="range" min="0" max="100" id="control-thr"></label>
-                <label for="control-morphology">Morphology: <input type="checkbox" id="control-morphology" checked></label>
+                <label for="control-morphology" title="Morphological post-processing (non-largest component suppression, hole filling)">Morphology: <input type="checkbox" id="control-morphology" checked></label>
             </fieldset>
 
             <fieldset id="triggers-params">
@@ -121,6 +123,16 @@
             <fieldset id="option-params">
                 <legend>Options</legend>
                 <label for="control-clear-on-resume">Clear on Resume: <input type="checkbox" id="control-clear-on-resume" checked></label>
+            </fieldset>
+
+            <fieldset id="links">
+                <legend>Links</legend>
+                <ul>
+                    <li><a target="_blank" href="https://github.com/fabiocarrara/meye/wiki"><img src="img/baseline_menu_book_black_36dp.png">Manual</a></li>
+                    <li><a target="_blank" href="https://www.freeconvert.com/avi-to-mp4"><img src="img/baseline_video_settings_black_36dp.png">AVI Converter</a></li>
+                    <li><a target="_blank" href="https://github.com/fabiocarrara/meye/"><img src="img/baseline_code_black_36dp.png">GitHub Project</a></li>
+                    <li><a target="_blank" href="https://github.com/fabiocarrara/meye/issues/new/choose"><img src="img/baseline_bug_report_black_36dp.png">Report Bugs</a></li>
+                </ul>
             </fieldset>
         </aside>
     </section>
