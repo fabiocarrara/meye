@@ -8,11 +8,30 @@ from tensorflow.keras import layers as L
 from tensorflow.keras.models import Model, Sequential
 
 from deeplabv3p.models.deeplabv3p_resnet50 import Deeplabv3pResNet50
-from deeplabv3p.models.deeplabv3p_mobilenetv3 import Deeplabv3pLiteMobileNetV3Small
+from deeplabv3p.models.deeplabv3p_mobilenetv3 import Deeplabv3pMobileNetV3Small, Deeplabv3pLiteMobileNetV3Small, Deeplabv3pMobileNetV3Large, Deeplabv3pLiteMobileNetV3Large
+from deeplabv3p.models.deeplabv3p_xception import Deeplabv3pXception
+from deeplabv3p.models.deeplabv3p_peleenet import Deeplabv3pPeleeNet, Deeplabv3pLitePeleeNet
 
 AVAILABLE_BACKBONES = {
     'resnet50': Deeplabv3pResNet50,
-    'lite-mobilenetv3-small': Deeplabv3pLiteMobileNetV3Small
+    'xception': Deeplabv3pXception,
+    'mobilenetv3-large': Deeplabv3pMobileNetV3Large,
+    'lite-mobilenetv3-large': Deeplabv3pLiteMobileNetV3Large,
+    'mobilenetv3-small': Deeplabv3pMobileNetV3Small,
+    'lite-mobilenetv3-small': Deeplabv3pLiteMobileNetV3Small,
+    'peleenet': Deeplabv3pPeleeNet,
+    'lite-peleenet': Deeplabv3pLitePeleeNet,
+}
+
+AVAILABLE_PRETRAINED_WEIGHTS = {
+    'resnet50': 'imagenet',
+    'xception': None,  # 'pascalvoc', # needs fix in upstream
+    'mobilenetv3-large': 'imagenet',
+    'lite-mobilenetv3-large': 'imagenet',
+    'mobilenetv3-small': 'imagenet',
+    'lite-mobilenetv3-small': 'imagenet',
+    'peleenet': 'imagenet',
+    'lite-peleenet': 'imagenet',
 }
 
 def build_model(input_shape, output_shape, config):
@@ -23,8 +42,9 @@ def build_model(input_shape, output_shape, config):
     # backbone pretends RGB images to use pretrained weights
     needs_rgb_conversion = input_shape[2] != 3
     backbone_input_shape = (input_shape[:2] + (3,)) if needs_rgb_conversion else input_shape
-    weights = config.get('weights', 'imagenet')
-    backbone_fn = AVAILABLE_BACKBONES[config.get('backbone', 'resnet50')]
+    backbone_name = config.get('backbone', 'resnet50')
+    weights = config.get('weights', AVAILABLE_PRETRAINED_WEIGHTS[backbone_name])
+    backbone_fn = AVAILABLE_BACKBONES[backbone_name]
     backbone, backbone_len = backbone_fn(input_shape=backbone_input_shape, num_classes=num_classes, weights=weights, OS=8)
 
     # segmentation mask
