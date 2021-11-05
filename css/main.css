@@ -478,3 +478,18 @@ video {
 #trace-data tr:nth-child(even) {
     background-color: #eee;
 }
+
+footer {
+    padding: 11px;
+    background-color: #187ec5;
+    color: white;
+    margin: 0;
+    font-size: .8em;
+    text-align: center;
+}
+
+footer p { margin: 5px 0; }
+footer span { margin: 0 10px; }
+footer a,
+footer a:visited { color: white; }
+footer a:hover { text-decoration: none; }
