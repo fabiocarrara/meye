@@ -51,6 +51,8 @@ You can make predictions with pretrained models on pre-recorded videos or webcam
 ## Training Models
 
   1. Download our dataset ([NN_human_mouse_eyes.zip](https://doi.org/10.5281/zenodo.4488164), 246.4 MB) or prepare your dataset following our dataset's structure.
+     > If you need to annotate your dataset, check out [pLabeler](https://github.com/LeonardoLupori/pLabeler), a MATLAB software for labeling pupil images.
+     
      The dataset should be placed in `data/<dataset_name>`.
      
   2. If you are using a custom dataset, edit `train.py` to perform the train/validation/test split of your data.
