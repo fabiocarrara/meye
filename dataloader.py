@@ -141,7 +141,6 @@ def load_datum(datum, x_shape=(128, 128, 1), augment=False):
     return x, y, y2
 
 
-
 def get_loader(dataframe, batch_size=8, shuffle=False, **kwargs):
     categories = dataframe.exp.values
 
@@ -174,6 +173,7 @@ def load_datasets(dataset_dirs):
         return data
 
     dataset = pd.concat([_load_and_prepare_annotations(d) for d in dataset_dirs])
+    dataset['sub'] = dataset['sub'].astype(str)
     return dataset
 
 
