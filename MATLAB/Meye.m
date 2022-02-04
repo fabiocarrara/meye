@@ -1,6 +1,6 @@
 classdef Meye
 
-    properties
+    properties (Access=private)
         model
     end
 
@@ -10,6 +10,7 @@ classdef Meye
         % CONSTRUCTOR
         %------------------------------------------------------------------
         function self = Meye(modelPath)
+            % Class constructor
             arguments
                 modelPath char {mustBeText}
             end
@@ -39,13 +40,17 @@ classdef Meye
 
         % PREDICTION OF SINGLE IMAGES
         %------------------------------------------------------------------
-        function [pupilMask, eyeProb, blinkProb] = predictImage(self,inputImage,roiPos)
+        function [pupilMask, eyeProb, blinkProb] = predictImage(self, inputImage, options)
+            % Predicts pupil location on a single image
             arguments
                 self
                 inputImage
-                roiPos = []
+                options.roiPos = []
+                options.threshold = []
             end
-            
+
+            roiPos = options.roiPos;
+
             % Convert the image to grayscale if RGB
             if size(inputImage,3) > 1
                 inputImage = im2gray(inputImage);
@@ -58,11 +63,11 @@ classdef Meye
             else
                 crop = inputImage;
             end
-            
+
             % Preprocessing
             img = double(imresize(crop,[128 128]));
             img = img / max(img,[],'all');
-            
+
             % Do the prediction
             [rawMask, info] = predict(self.model, img);
             eyeProb = info(1);
@@ -72,22 +77,98 @@ classdef Meye
             if ~isempty(roiPos)
                 pupilMask = zeros(size(inputImage));
                 pupilMask(roiPos(2):roiPos(2)+roiPos(3)-1,...
-                    roiPos(1):roiPos(1)+roiPos(4)-1) = imresize(rawMask, [roiPos(4), roiPos(3)]);
+                    roiPos(1):roiPos(1)+roiPos(4)-1) = imresize(rawMask, [roiPos(4), roiPos(3)],"bilinear");
             else
-                pupilMask = rawMask;
+                pupilMask = imresize(rawMask,size(inputImage),"bilinear");
+            end
+
+            % Apply a threshold to the image if requested
+            if ~isempty(options.threshold)
+                pupilMask = pupilMask > options.threshold;
             end
 
         end
 
-        % PREVIEW OF A PREDICTED MOVIE
+
+        % PREDICT A MOVIE AND GET A TABLE WITH THE RESULTS
         %------------------------------------------------------------------
-        function predictMovie_Preview(self, moviePath, roiPos)
+        function tab = predictMovie(self, moviePath, options)
+            % Predict an entire video file and returns a results Table
+            %
+            % tab = predictMovie(moviePath, name-value)
+            % 
+            % INPUT(S)
+            %   - moviePath: (char/string) Full path of a video file.
+            %   - name-value pairs
+            %       - roiPos: [x,y,width,height] 4-elements vector defining a
+            %       rectangle containing the eye. Works best if width and
+            %       height are similar. If empty, a prediction will be done on 
+            %       a full frame(Default: []).
+            %       - threshold: [0-1] The pupil prediction is binarized based
+            %       on a threshold value to measure pupil size. (Default:0.4)
+            %
+            % OUTPUT(S)
+            %   - tab: a MATLAB table containing data of the analyzed video
 
             arguments
                 self
                 moviePath char {mustBeText}
-                roiPos double = []
+                options.roiPos double = []
+                options.threshold = 0.4;
             end
+
+            % Initialize a video reader
+            v = VideoReader(moviePath);
+            totFrames = v.NumFrames;
+
+            % Initialize Variables
+            frameN = zeros(totFrames,1,'double');
+            frameTime = zeros(totFrames,1,'double');
+            binaryMask = cell(totFrames,1);
+            pupilArea = zeros(totFrames,1,'double');
+            isEye = zeros(totFrames,1,'double');
+            isBlink = zeros(totFrames,1,'double');
+
+            tic
+            for i = 1:totFrames
+                % Progress report
+                if toc>10
+                    fprintf('%.1f%% - Processing frame (%u/%u)\n', (i/totFrames)*100 , i, totFrames)
+                    tic
+                end
+
+                % Read  a frame and make its prediction
+                frame = read(v, i, 'native');
+                [pupilMask, eyeProb, blinkProb] = self.predictImage(frame, roiPos=options.roiPos,...
+                    threshold=options.threshold);
+
+                % Save results for this frame
+                frameN(i) = i;
+                frameTime(i) = v.CurrentTime;
+                binaryMask{i} = pupilMask > options.threshold;
+                pupilArea(i) = sum(binaryMask{i},"all");
+                isEye(i) = eyeProb;
+                isBlink(i) = blinkProb;
+            end
+            % Save all the results in a final table
+            tab = table(frameN,frameTime,binaryMask,pupilArea,isEye,isBlink);
+        end
+
+
+
+        % PREVIEW OF A PREDICTED MOVIE
+        %------------------------------------------------------------------
+        function predictMovie_Preview(self, moviePath, options)
+            % Displays a live-preview of prediction for a video file
+
+            arguments
+                self
+                moviePath char {mustBeText}
+                options.roiPos double = []
+                options.threshold double = []
+            end
+            roiPos = options.roiPos;
+
 
             % Initialize a video reader
             v = VideoReader(moviePath);
@@ -113,19 +194,20 @@ classdef Meye
             cyanHandle = imshow(cyanColor,'Parent',ax);
             cyanHandle.AlphaData = pupilTransparency;
             rect = rectangle('LineWidth',1.5, 'LineStyle','-.','EdgeColor',[1,0,0],...
-                'Parent',ax);
+                'Parent',ax,'Position',[0,0,0,0]);
             hold off
             title(ax,'MEYE Video Preview', 'Color',[1,1,1])
-            
-            % Movie Showing loop
+
+            % Movie-Showing loop
             while exist("figHandle","var") && ishandle(figHandle) && hasFrame(v)
                 try
                     tic
                     frame = readFrame(v);
-                    
+
                     % Actually do the prediction
-                    [pupilMask, eyeProb, blinkProb] = self.predictImage(frame, roiPos);
-                    
+                    [pupilMask, eyeProb, blinkProb] = self.predictImage(frame, roiPos=roiPos,...
+                        threshold=options.threshold);
+
                     % Update graphic elements
                     imHandle.CData = frame;
                     cyanHandle.AlphaData = imresize(pupilMask, [v.Height, v.Width]);
@@ -137,6 +219,7 @@ classdef Meye
                     ax.Title.String = titStr;
                     drawnow
                 catch ME
+                    warning(ME.message)
                     close(figHandle)
                 end
             end
@@ -144,20 +227,23 @@ classdef Meye
         end
 
 
-        %------------------------------------------------------------------
-        %------------------------------------------------------------------
-        % INTERNAL FUNCTIONS
-        %------------------------------------------------------------------
-        %------------------------------------------------------------------
+    end
 
-        % getClassPath
+    
+    %------------------------------------------------------------------
+    %------------------------------------------------------------------
+    % INTERNAL FUNCTIONS
+    %------------------------------------------------------------------
+    %------------------------------------------------------------------
+    methods(Access=private)
         %------------------------------------------------------------------
         function path = getClassPath(~)
+            % Returns the full path of where the class file is
+
             fullPath = mfilename('fullpath');
             [path,~,~] = fileparts(fullPath);
         end
 
-        % listfiles
         %------------------------------------------------------------------
         function [fplist,fnlist] = listfiles(~, folderpath, token)
             listing = dir(folderpath);
@@ -218,9 +304,7 @@ classdef Meye
                 fclose(fID);
             end
         end
-
     end
-
 end
 
 
