@@ -36,7 +36,7 @@ img = imread('path/to/img.tif');
 [pupil, isEye, isBlink] = meye.predictImage(img);
 
 % Example 2
-% Make predictions on a video file a preview the results
+% Make predictions on a video file and preview the results
 %
 meye.predictMovie_Preview('path/to/video');
 ```
