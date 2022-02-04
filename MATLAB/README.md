@@ -4,7 +4,7 @@
 
 > Learn more on the original [MEYE repo](https://github.com/fabiocarrara/meye)
 
-> Label your own dataset with [pLabeber](https://github.com/LeonardoLupori/pLabeler)
+> Label your own dataset with [pLabeler](https://github.com/LeonardoLupori/pLabeler)
 
 Starting from MATLAB version 2021b, MEYE is also available for use on MATLAB!
 
