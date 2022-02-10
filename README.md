@@ -1,9 +1,10 @@
 # [*mEye*](https://www.pupillometry.it): A Deep Learning Tool for Pupillometry
 
+> ⭐ MEYE is available on **MATLAB**! Check it out [here](MATLAB\README.md)
+
 > Check out [pupillometry.it](https://www.pupillometry.it) for a ready-to-use web-based mEye pupillometry tool!
 
-
-This branch provides the Python code for make predictions and train/finetune models.
+This branch provides the Python code to make predictions and train/finetune models.
 If you are interested in the code of the pupillometry web app, check out the `gh-pages` branch.
 
 ## Requirements
@@ -66,7 +67,12 @@ You can make predictions with pretrained models on pre-recorded videos or webcam
     ```bash
     python train.py -h
     ```
-    
+
+## MATLAB support
+Starting from MATLAB version 2021b, MEYE is also available for use on MATLAB!  
+A fully functional class and a tutorial for its use is available [here](MATLAB\README.md)!
+
+
 ## References
 
 ### Dataset
