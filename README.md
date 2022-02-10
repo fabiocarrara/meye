@@ -70,7 +70,7 @@ You can make predictions with pretrained models on pre-recorded videos or webcam
 
 ## MATLAB support
 Starting from MATLAB version 2021b, MEYE is also available for use on MATLAB!  
-A fully functional class and a tutorial for its use is available [here](MATLAB\README.md)!
+A fully functional class and a tutorial for its use is available [here](MATLAB/README.md)!
 
 
 ## References
