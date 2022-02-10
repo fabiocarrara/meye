@@ -1,6 +1,6 @@
 # [*mEye*](https://www.pupillometry.it): A Deep Learning Tool for Pupillometry
 
-> ⭐ MEYE is available on **MATLAB**! Check it out [here](MATLAB\README.md)
+> ⭐ MEYE is available on **MATLAB**! Check it out [here](matlab/README.md)
 
 > Check out [pupillometry.it](https://www.pupillometry.it) for a ready-to-use web-based mEye pupillometry tool!
 
@@ -70,7 +70,7 @@ You can make predictions with pretrained models on pre-recorded videos or webcam
 
 ## MATLAB support
 Starting from MATLAB version 2021b, MEYE is also available for use on MATLAB!  
-A fully functional class and a tutorial for its use is available [here](MATLAB/README.md)!
+A fully functional class and a tutorial for its use is available [here](matlab/README.md)!
 
 
 ## References
