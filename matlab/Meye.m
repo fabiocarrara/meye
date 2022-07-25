@@ -58,8 +58,8 @@ classdef Meye
 
             % Crop the frame to the desired ROI
             if ~isempty(roiPos)
-                crop = inputImage(roiPos(2):roiPos(2)+roiPos(3)-1,...
-                    roiPos(1):roiPos(1)+roiPos(4)-1);
+                crop = inputImage(roiPos(2):roiPos(2)+roiPos(4)-1,...
+                    roiPos(1):roiPos(1)+roiPos(3)-1);
             else
                 crop = inputImage;
             end
@@ -76,8 +76,8 @@ classdef Meye
             % Reinsert the cropped prediction in the frame
             if ~isempty(roiPos)
                 pupilMask = zeros(size(inputImage));
-                pupilMask(roiPos(2):roiPos(2)+roiPos(3)-1,...
-                    roiPos(1):roiPos(1)+roiPos(4)-1) = imresize(rawMask, [roiPos(4), roiPos(3)],"bilinear");
+                pupilMask(roiPos(2):roiPos(2)+roiPos(4)-1,...
+                    roiPos(1):roiPos(1)+roiPos(3)-1) = imresize(rawMask, [roiPos(4), roiPos(3)],"bilinear");
             else
                 pupilMask = imresize(rawMask,size(inputImage),"bilinear");
             end
