@@ -742,6 +742,8 @@ function predictLoop() {
 function startPredictionLoop() {
     if (controlClearOnResume.checked)
         clearData();
+    else
+        clearAfterCurTime();
 
     predictLoop();
 }
@@ -797,6 +799,13 @@ function clearData() {
     chart = null;
     // video.pause();
     // video.currentTime = 0;
+}
+
+function clearAfterCurTime() {
+    const curTime = video.currentTime - 0.01;
+    samples = samples.filter(s => s[1] < curTime);
+    updateChart();
+    updateTable();
 }
 
 function setContrast(event) {
