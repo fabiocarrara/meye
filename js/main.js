@@ -900,6 +900,7 @@ google.charts.load('current', {
 function initChart() {
     // Instantiate and draw our chart, passing in some options.
     chart = new google.visualization.LineChart(chartContainer);
+    google.visualization.events.addListener(chart, 'select', jumpFromChart);
 }
 
 function initChartData() {
@@ -975,6 +976,26 @@ function initChartOptions() {
     };
 }
 
+function jumpTo(timecode) {
+    // jump only when not predicting
+    if (video.paused) video.currentTime = timecode;
+}
+
+function jumpFromChart(event) {
+    const selection = chart.getSelection();
+    if (selection[0] && selection[0].row) {
+        const timecode = chartData.getValue(selection[0].row, 0);
+        jumpTo(timecode);
+    }
+}
+
+function jumpFromTableRow(event) {
+    if (this.children[1] && this.children[1].textContent) {
+        const timecode = parseFloat(this.children[1].textContent);
+        jumpTo(timecode);
+    }
+}
+
 var samples = [];
 
 function addSample(sample) {
@@ -998,6 +1019,7 @@ function addSample(sample) {
             triggers.map(t => '<td>' + t + '</td>').join(''));
 
         trace.appendChild(sampleRow);
+        sampleRow.addEventListener('click', jumpFromTableRow, false);
         traceContainer.scrollTop = traceContainer.scrollHeight;
     }
 
@@ -1049,6 +1071,7 @@ function updateTable() {
             triggers.map(t => '<td>' + t + '</td>').join(''));
 
         trace.appendChild(sampleRow);
+        sampleRow.addEventListener('click', jumpFromTableRow, false);
     });
     traceContainer.scrollTop = traceContainer.scrollHeight;
 }

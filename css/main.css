@@ -440,7 +440,6 @@ video {
     vertical-align: baseline;
 }
 
-
 #trace {
     font-family: monospace;
     font-size: small;
@@ -477,6 +476,11 @@ video {
 
 #trace-data tr:nth-child(even) {
     background-color: #eee;
+}
+
+#trace-data tr:hover td {
+    text-decoration: underline;
+    cursor: pointer;
 }
 
 footer {
