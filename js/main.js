@@ -14,7 +14,6 @@ const demoButtons = document.querySelectorAll('.demo-button');
 /******************
  * INPUTS
  *****************/
-
 fileInput.addEventListener('change', function (event) {
     inputError.classList.add('hide');
     var file = this.files[0];
@@ -40,7 +39,7 @@ function getUserMediaSupported() {
 }
 
 // If webcam supported, add event listener to button for when user
-// wants to activate it to call enableCam function which we will 
+// wants to activate it to call enableCam function which we will
 // define in the next step.
 if (getUserMediaSupported()) {
     webcamButton.addEventListener('click', toggleCam);
@@ -140,7 +139,6 @@ demoButtons.forEach(element => {
 /********************
  * ROI
  *******************/
-
 const roi = document.getElementById('roi');
 const rx = document.getElementById('roi-left');
 const ry = document.getElementById('roi-top');
@@ -327,7 +325,6 @@ document.body.addEventListener('drop', drop); // in common
 /****************
  * PUPIL LOCATOR
  ***************/
-
 const pupilXLocator = document.getElementById('pupil-x');
 const pupilYLocator = document.getElementById('pupil-y');
 
@@ -400,7 +397,7 @@ function spikeTrigger(event) {
 document.getElementsByClassName('control-trigger').forEach(element => {
     const triggerId = parseInt(element.dataset.triggerId);
     triggerButtons[triggerId] = element;
-    element.addEventListener('click', spikeTrigger); 
+    element.addEventListener('click', spikeTrigger);
 });
 
 /****************
@@ -463,7 +460,7 @@ function predictFrame() {
         .slice([y, x], [s, s])
         .resizeBilinear([128, 128])
         .mul(rgb).sum(2);
-    
+
     if (contrastFactor != 1) {
         const mean = frame.mean()
         frame = frame.sub(mean).mul(tf.scalar(contrastFactor)).add(mean);
@@ -474,7 +471,7 @@ function predictFrame() {
     frame = frame.clipByValue(0, 255);
 
     if (controlInvert.checked) frame = _255.sub(frame);
-    
+
     frame = frame.div(_255);
 
     tf.browser.toPixels(frame, input);
@@ -1099,7 +1096,7 @@ function exportCsv() {
     let header = ['timestamp', 'timecode', 'pupil-area', 'blink', 'pupil-x', 'pupil-y'];
     let triggerHeader = Array.from(new Array(nTriggers), (val, index) => 'trigger' + (index+1));
     header = header.concat(triggerHeader);
-    
+
     let csvHeader = ["data:text/csv;charset=utf-8," + header.join(',')];
     let csvLines = samples
         .map(r => [r[0].toISOString()].concat(r.slice(1)))
