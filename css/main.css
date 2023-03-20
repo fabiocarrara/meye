@@ -240,6 +240,11 @@ input[type=number] {
     color: red;
 }
 
+.experimental {
+    color: red;
+    font-size: xx-small;
+}
+
 #preview {
     padding: 0;
     border: 0;

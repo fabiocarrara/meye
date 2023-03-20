@@ -120,6 +120,13 @@
                 <input type="button" value="Trigger 4 (R)" class="control-trigger" accesskey="r" data-trigger-id="3">
             </fieldset>
 
+            <fieldset id="socket-params">
+                <legend>Stream Data <span class="experimental">(Experimental)</span></legend>
+                <label for="control-websocket-connect">WebSocket Server URL:</label>
+                <input type="url" id="control-websocket-url" value="ws://localhost:8000">
+                <input type="button" value="Connect" id="control-websocket-connect">
+            </fieldset>
+
             <fieldset id="option-params">
                 <legend>Options</legend>
                 <label for="control-clear-on-resume">Clear on Resume: <input type="checkbox" id="control-clear-on-resume" checked></label>

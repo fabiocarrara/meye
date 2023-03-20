@@ -883,6 +883,36 @@ controlThreshold.addEventListener('input', setThreshold);
 controlMorphology.addEventListener('change', () => { updatePrediction(5); });
 
 /***************
+ * WebSocket
+ **************/
+let socket = null;
+
+const controlWebSocketUrl = document.getElementById('control-websocket-url');
+const controlWebSocketConnect = document.getElementById('control-websocket-connect');
+
+function setWsStatus(status) {
+    controlWebSocketConnect.value = status;
+}
+
+function toggleWebSocket(event) {
+    if (socket) {
+        socket.close(1000, "Closing");
+        socket = null;
+        return true;
+    }
+
+    let url = controlWebSocketUrl.value;
+    socket = new WebSocket(url);
+    setWsStatus('Connecting ...');
+    socket.addEventListener('open', () => { setWsStatus('Disconnect'); });
+    socket.addEventListener('error', (e) => { setWsStatus('Error: ' + e.data); });
+    socket.addEventListener('close', () => { setWsStatus('Connect'); });
+}
+
+controlWebSocketConnect.addEventListener('click', toggleWebSocket);
+
+
+/***************
  * CHART & TABLE
  **************/
 
@@ -1011,6 +1041,18 @@ function addSample(sample) {
     let flatSample = sample.slice(0, -1).concat(triggers);
     samples.push(flatSample);
     sampleCount.textContent = "" + samples.length;
+
+    if (socket && socket.readyState == WebSocket.OPEN) {
+        socket.send(JSON.stringify({
+            timestamp: timestamp,
+            timecode: timecode,
+            pupilArea: pupilArea,
+            blinkProb: blinkProb,
+            pupilX: pupilX,
+            pupilY: pupilY,
+            triggers: triggers,
+        }));
+    }
 
     if (controlTableAutoUpdate.checked) {
 
