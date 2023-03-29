@@ -27,7 +27,7 @@ We provide a [Dockerfile](./Dockerfile) for building an image with docker.
 
 You can make predictions with pretrained models on pre-recorded videos or webcam streams. 
 
-  1. Download the [pretrained model](https://github.com/fabiocarrara/meye/releases/download/v0.1/meye-segmentation_i128_s4_c1_f16_g1_a-relu.hdf5).
+  1. Download the [pretrained model](https://github.com/fabiocarrara/meye/releases/download/v0.1.1/meye-2022-01-24.h5). If you want to use the [old model](https://github.com/fabiocarrara/meye/releases/download/v0.1/meye-segmentation_i128_s4_c1_f16_g1_a-relu.hdf5), check out version [`v0.1` of this branch](https://github.com/fabiocarrara/meye/tree/v0.1). See available models in [Releases](https://github.com/fabiocarrara/meye/releases).
   2. Check out the `pupillometry-offline-videos.ipynb` notebook for a complete example of pupillometry data analysis.
   3. In alternative, we provide also the `predict.py` script that implements the basic loop to make predictions on video streams. E.g.:
 
